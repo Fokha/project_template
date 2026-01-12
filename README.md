@@ -1,299 +1,242 @@
-# Fokha Project Template v2.1
+# Project Template
 
-A complete project template with multi-agent system, knowledge base, automation, cloud infrastructure, **74 reusable code patterns**, **5 documentation templates**, and **8 Claude Code skill templates**.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/Fokha/project_template.svg)](https://github.com/Fokha/project_template/stargazers)
 
-**Total Templates: 87+**
+A production-ready project template featuring a **multi-agent system**, **150+ reusable code patterns**, and **Claude Code integration**. Battle-tested in the Fokha Trading System.
 
----
+## Features
 
-## What's New in v2.1
-
-- **Documentation Templates** - 5 comprehensive templates (~2,500 lines)
-- **Claude Code Skills** - 8 reusable skill templates
-- **Updated Skills Library** - 74 production-tested code patterns
-- **Skills Sync Script** - `update_skills.sh` with 50+ pattern mappings
-
----
-
-## Quick Overview
-
-```
-project_template/
-├── docs/                        # 📄 Documentation Templates (NEW!)
-│   ├── README_TEMPLATE.md       #    Project README (~560 lines)
-│   ├── PRD_TEMPLATE.md          #    Product Requirements (~450 lines)
-│   ├── DEV_GUIDE_TEMPLATE.md    #    Developer Guide (~550 lines)
-│   ├── PROJECT_STRUCTURE_TEMPLATE.md
-│   └── CLAUDE_TEMPLATE.md       #    AI Agent docs (~544 lines)
-│
-├── claude/                      # 🤖 Claude Code Skills (NEW!)
-│   └── skills/                  #    8 workflow templates
-│       ├── status.md            #    System health checks
-│       ├── preflight.md         #    Pre-task verification
-│       ├── done.md              #    Definition of done
-│       ├── commit.md            #    Git commit helper
-│       ├── test.md              #    Test execution guide
-│       ├── deploy.md            #    Deployment procedures
-│       ├── debug.md             #    Debugging guide
-│       └── update-docs.md       #    Documentation updates
-│
-├── skills/                      # 💡 Code Templates (74 patterns)
-│   ├── flutter/         (8)     #    Flutter/Dart patterns
-│   ├── python_api/      (10)    #    Python Flask patterns
-│   ├── machine_learning/(12)    #    ML pipeline patterns
-│   ├── agentic/         (20)    #    AI agent patterns
-│   ├── devops/          (9)     #    Infrastructure patterns
-│   ├── integration/     (8)     #    Cross-system patterns
-│   ├── n8n/             (6)     #    Workflow patterns
-│   └── mql5/            (1)     #    MetaTrader 5 patterns
-│
-├── agents/                      # 🧠 Multi-Agent System
-├── knowledge_base/              # 📚 Knowledge Base
-├── infrastructure/              # ☁️  Cloud & Docker
-├── scripts/                     # 🔧 Automation Scripts
-└── api/                         # 🔌 Python API Template
-```
-
----
-
-## Documentation Templates
-
-New in v2.1: Complete documentation templates for any project.
-
-| Template | Lines | Purpose |
-|----------|-------|---------|
-| `README_TEMPLATE.md` | ~560 | Project README with all essential sections |
-| `PRD_TEMPLATE.md` | ~450 | Product Requirements Document |
-| `DEV_GUIDE_TEMPLATE.md` | ~550 | Developer onboarding & reference |
-| `PROJECT_STRUCTURE_TEMPLATE.md` | ~350 | Codebase documentation |
-| `CLAUDE_TEMPLATE.md` | ~544 | AI agent master documentation |
-
-### Usage
-
-```bash
-# Copy template to your project
-cp docs/README_TEMPLATE.md ~/my_project/README.md
-
-# Replace placeholders
-sed -i '' 's/{{PROJECT_NAME}}/MyProject/g' ~/my_project/README.md
-sed -i '' 's/{{VERSION}}/1.0.0/g' ~/my_project/README.md
-```
-
-### Key Sections in Each Template
-
-**README_TEMPLATE.md:**
-- Features, Demo, Quick Start, Installation
-- Usage, Configuration, API Reference
-- Development, Testing, Deployment
-- Contributing, Roadmap, FAQ, License
-
-**PRD_TEMPLATE.md:**
-- Executive Summary, Problem Statement
-- Goals & KPIs, User Personas
-- Feature Requirements with Priority Matrix
-- Technical & Non-Functional Requirements
-- Timeline, Risks, Sign-off
-
-**DEV_GUIDE_TEMPLATE.md:**
-- Quick Start, Project Structure
-- Environment Setup, Coding Standards
-- Architecture Overview, API Reference
-- Database Schema, Testing Guide
-- Deployment, Troubleshooting
-
-**CLAUDE_TEMPLATE.md:**
-- Project Overview, Architecture
-- API Reference, Database Schema
-- Workflows & Automation
-- Agent Instructions (mandatory rules)
-- Commands & Shortcuts
-
----
-
-## Claude Code Skills
-
-Templates for common development workflows. Copy to `.claude/skills/` in your project.
-
-| Skill | Purpose |
-|-------|---------|
-| `status.md` | System health check commands |
-| `preflight.md` | Pre-task environment verification |
-| `done.md` | Task completion checklist |
-| `update-docs.md` | Documentation update workflow |
-| `commit.md` | Git commit conventions |
-| `test.md` | Test execution guide |
-| `deploy.md` | Deployment procedures |
-| `debug.md` | Debugging tools & techniques |
-
-### Setup
-
-```bash
-# Copy to your project
-cp -r claude/skills/ ~/my_project/.claude/skills/
-
-# Customize placeholders
-sed -i '' 's/{{PORT}}/3000/g' ~/my_project/.claude/skills/*.md
-sed -i '' 's/{{TEST_CMD}}/npm test/g' ~/my_project/.claude/skills/*.md
-```
-
-### Invoke Skills
-
-After setup, use as slash commands in Claude Code:
-- `/status` - Check system health
-- `/preflight` - Pre-task checklist
-- `/done` - Verify task completion
-- `/commit` - Git commit helper
-
----
-
-## Code Skills Library (74 Patterns)
-
-Production-tested code templates extracted from the Fokha Trading System.
-
-### Categories
-
-| Category | Count | Description |
-|----------|-------|-------------|
-| **flutter/** | 8 | Provider, Service, Model, Widget, API Client, WebSocket, Theme, Plugin |
-| **python_api/** | 10 | Blueprint, Endpoint, Database, Cache, Validation, Health Check |
-| **machine_learning/** | 12 | Training, Serving, Feature Engineering, Walk-forward, Ensemble |
-| **agentic/** | 20 | All 20 agentic design patterns (ReAct, Consensus, Debate, etc.) |
-| **devops/** | 9 | Docker, CI/CD, Monitoring, Backup, Secrets Management |
-| **integration/** | 8 | WebSocket, Telegram Bot, MT5 Bridge, Webhook Handler |
-| **n8n/** | 6 | Cron, Webhook, API Poller, Error Handler |
-| **mql5/** | 1 | EA Template, Risk Manager, Strategy Base |
-
-### Quick Usage
-
-```bash
-# Copy a template
-cp skills/python_api/endpoint_template.py ~/my_project/api/users.py
-
-# Replace placeholders
-sed -i '' 's/{{FEATURE_NAME}}/users/g' ~/my_project/api/users.py
-```
-
-### Sync Script
-
-Use `scripts/update_skills.sh` to sync skills from any project:
-
-```bash
-# List all skills
-./scripts/update_skills.sh --list
-
-# Dry-run sync
-./scripts/update_skills.sh --dry-run --all
-
-# Sync specific category
-./scripts/update_skills.sh --category flutter
-```
-
-See `skills/README.md` and `skills/SKILLS_INDEX.md` for full documentation.
-
----
-
-## Multi-Agent System
-
-```
-agents/
-├── AGENT_SYSTEM.md              # Architecture documentation
-├── README.md                    # Agent setup guide
-├── init_agents.sh               # Initialize agent system
-└── prompts/
-    ├── AGENT_SYSTEM_PROMPT_TEMPLATE.md
-    └── PROMPT_STYLE_GUIDE.md
-```
-
-### Agent Roles
-
-| Agent | Responsibility |
-|-------|----------------|
-| Orchestrator | Task coordination, delegation |
-| Developer | Implementation, coding |
-| Researcher | Information gathering |
-| Reviewer | Quality assurance |
-
----
-
-## Knowledge Base
-
-SQLite-based knowledge base for project memory.
-
-```
-knowledge_base/
-├── schema.sql                   # Database schema
-├── migrations/
-│   └── LESSONS_LEARNED.md       # Architecture insights
-└── docs/
-    └── AGENT_KNOWLEDGE_BASE_SETUP.md
-```
-
-### Key Tables
-
-| Table | Purpose |
-|-------|---------|
-| `kb_tasks` | Work tracking |
-| `kb_decisions` | Architecture decisions |
-| `kb_messages` | Inter-agent communication |
-| `kb_session_context` | Session persistence |
-| `kb_activity_log` | Audit trail |
-
----
-
-## Infrastructure
-
-```
-infrastructure/
-├── docker-compose.yml           # Full stack compose
-└── (cloud deployment configs)
-```
-
-### Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `scripts/dev-start.sh` | Start tmux dev environment |
-| `scripts/dev-stop.sh` | Stop dev environment |
-| `scripts/init_project.sh` | Initialize new project |
-| `scripts/update_skills.sh` | Sync skills from source |
+- **Multi-Agent System** - Hierarchical agents (THE_ASSISTANT, THE_MASTER, Specialists)
+- **Skills Library** - 74 code templates across 8 categories
+- **Claude Code Integration** - 10+ slash commands ready to use
+- **Documentation Templates** - README, PRD, Dev Guide, CLAUDE.md
+- **Knowledge Base** - SQLite schema for project memory
+- **DevOps Ready** - Docker, CI/CD, monitoring templates
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Clone template
-cp -r project_template/ ~/my_new_project/
-cd ~/my_new_project
+# Clone the template
+git clone https://github.com/Fokha/project_template.git my-project
+cd my-project
 
-# 2. Initialize
+# Remove git history and start fresh
+rm -rf .git && git init
+
+# Initialize your project
 ./scripts/init_project.sh "My Project Name"
 
-# 3. Copy documentation templates
-cp docs/README_TEMPLATE.md README.md
-cp docs/CLAUDE_TEMPLATE.md CLAUDE.md
-
-# 4. Setup Claude Code skills
-mkdir -p .claude/skills
-cp -r claude/skills/* .claude/skills/
-
-# 5. Customize placeholders
-sed -i '' 's/{{PROJECT_NAME}}/MyProject/g' README.md CLAUDE.md
-sed -i '' 's/{{PORT}}/3000/g' .claude/skills/*.md
-
-# 6. Start dev environment
+# Start development
 ./scripts/dev-start.sh
 ```
 
 ---
 
-## Dev Environment (tmux)
+## Project Structure
+
+```
+project_template/
+├── .claude/                    # Claude Code configuration
+│   ├── commands/               # 10 slash commands
+│   └── settings.json           # Claude Code settings
+│
+├── agents/                     # Multi-Agent System
+│   ├── prompts/                # Agent prompt templates
+│   │   ├── THE_ASSISTANT.md    # User interface agent
+│   │   ├── THE_MASTER.md       # Strategic architect
+│   │   ├── BACKEND_DEV_AGENT.md
+│   │   ├── DEVOPS_AGENT.md
+│   │   └── SPECIALIST_AGENT_TEMPLATE.md
+│   └── AGENT_SYSTEM.md         # Architecture docs
+│
+├── skills/                     # Code Templates (74 patterns)
+│   ├── agentic/        (21)    # AI agent patterns
+│   ├── python_api/     (10)    # Flask API patterns
+│   ├── flutter/        (10)    # Dart/Flutter patterns
+│   ├── machine_learning/(12)   # ML pipeline patterns
+│   ├── devops/         (10)    # Infrastructure patterns
+│   ├── integration/    (8)     # Cross-system patterns
+│   ├── n8n/            (6)     # Workflow automation
+│   └── mql5/           (9)     # MetaTrader 5 patterns
+│
+├── docs/                       # Documentation Templates
+│   ├── README_TEMPLATE.md
+│   ├── PRD_TEMPLATE.md
+│   ├── DEV_GUIDE_TEMPLATE.md
+│   ├── CLAUDE_TEMPLATE.md
+│   └── PROJECT_STRUCTURE_TEMPLATE.md
+│
+├── claude/skills/              # Claude Code Skills (8)
+├── knowledge_base/             # SQLite KB schema
+├── infrastructure/             # Docker configs
+└── scripts/                    # Automation scripts
+```
+
+---
+
+## Multi-Agent System
+
+A hierarchical agent architecture with clear separation of concerns:
+
+```
+                    USER
+                      │
+                      ▼
+            ┌─────────────────┐
+            │  THE_ASSISTANT  │  ← Layer 1: User Interface
+            │   (Supervisor)  │
+            └────────┬────────┘
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   ┌─────────┐  ┌─────────┐  ┌─────────┐
+   │ MASTER  │  │ Direct  │  │ Direct  │  ← Layer 2: Routing
+   │(Architect)│  │ Execute │  │ Query   │
+   └────┬────┘  └─────────┘  └─────────┘
+        │
+   ┌────┴────┬─────────┬─────────┐
+   ▼         ▼         ▼         ▼         ← Layer 3: Specialists
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│BACKEND│ │FRONTEND│ │DEVOPS│ │ ...  │
+└──────┘ └──────┘ └──────┘ └──────┘
+```
+
+### Agent Roles
+
+| Agent | Role | When to Use |
+|-------|------|-------------|
+| THE_ASSISTANT | User interface, task routing | All user interactions |
+| THE_MASTER | Architecture, strategic decisions | New features, tech choices |
+| BACKEND_DEV | APIs, databases, server logic | Backend implementation |
+| DEVOPS | Infrastructure, deployment | CI/CD, Docker, monitoring |
+
+---
+
+## Skills Library
+
+### Categories
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| `agentic/` | 21 | ReAct, Consensus, Debate, Reflection, Routing, etc. |
+| `python_api/` | 10 | Flask blueprints, endpoints, validation, caching |
+| `flutter/` | 10 | Providers, services, models, widgets, OAuth |
+| `machine_learning/` | 12 | Training, serving, walk-forward, ensembles |
+| `devops/` | 10 | Docker, CI/CD, monitoring, backup, secrets |
+| `integration/` | 8 | WebSocket, Telegram, webhooks, MT5 bridge |
+| `n8n/` | 6 | Cron workflows, API polling, error handling |
+| `mql5/` | 9 | EA template, indicators, risk management |
+
+### Usage
+
+```bash
+# Copy a template to your project
+cp skills/python_api/endpoint_template.py src/api/users.py
+
+# Replace placeholders
+sed -i '' 's/{{FEATURE_NAME}}/users/g' src/api/users.py
+sed -i '' 's/{{MODEL_NAME}}/User/g' src/api/users.py
+```
+
+---
+
+## Claude Code Integration
+
+### Slash Commands
+
+Pre-configured commands in `.claude/commands/`:
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Check system health |
+| `/task` | Task management |
+| `/agent` | Agent coordination |
+| `/session` | Session management |
+| `/backup` | Backup operations |
+| `/sync` | Sync commands |
+| `/infra` | Infrastructure commands |
+| `/msg` | Inter-agent messaging |
+| `/complete` | Task completion |
+| `/tools` | Available tools index |
+
+### Setup in Your Project
+
+```bash
+# Copy Claude Code configuration
+cp -r .claude/ ~/my-project/.claude/
+
+# Customize settings
+vim ~/my-project/.claude/settings.json
+```
+
+---
+
+## Documentation Templates
+
+| Template | Purpose | Lines |
+|----------|---------|-------|
+| `README_TEMPLATE.md` | Project README | ~560 |
+| `PRD_TEMPLATE.md` | Product Requirements | ~450 |
+| `DEV_GUIDE_TEMPLATE.md` | Developer Guide | ~550 |
+| `CLAUDE_TEMPLATE.md` | AI Agent Documentation | ~544 |
+| `PROJECT_STRUCTURE_TEMPLATE.md` | Codebase Docs | ~350 |
+
+### Placeholders
+
+All templates use `{{PLACEHOLDER}}` syntax:
+
+```bash
+# Replace all placeholders
+sed -i '' 's/{{PROJECT_NAME}}/MyApp/g' docs/*.md
+sed -i '' 's/{{VERSION}}/1.0.0/g' docs/*.md
+sed -i '' 's/{{AUTHOR}}/Your Name/g' docs/*.md
+```
+
+---
+
+## Knowledge Base
+
+SQLite-based project memory with schema for:
+
+| Table | Purpose |
+|-------|---------|
+| `kb_tasks` | Task tracking |
+| `kb_decisions` | Architecture decisions |
+| `kb_messages` | Agent communication |
+| `kb_session_context` | Session persistence |
+| `kb_activity_log` | Audit trail |
+
+```bash
+# Initialize knowledge base
+sqlite3 knowledge_base/project_kb.db < knowledge_base/schema.sql
+```
+
+---
+
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `init_project.sh` | Initialize new project from template |
+| `dev-start.sh` | Start tmux development environment |
+| `dev-stop.sh` | Stop development environment |
+| `update_skills.sh` | Sync skills from source project |
+| `create_project.sh` | Create new project structure |
+| `complete_task.sh` | Mark task as complete |
+
+---
+
+## Development Environment
 
 ```bash
 ./scripts/dev-start.sh
 ```
 
-**Pane Layout:**
+Creates a tmux session with 6 panes:
+
 ```
 ┌─────────────┬─────────────┬─────────────┐
 │  0: API     │  1: Docker  │  2: Cloud   │
@@ -302,83 +245,59 @@ sed -i '' 's/{{PORT}}/3000/g' .claude/skills/*.md
 └─────────────┴─────────────┴─────────────┘
 ```
 
-**tmux Shortcuts (prefix = `Ctrl+B`):**
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+B ←→↑↓` | Navigate panes |
-| `Ctrl+B z` | Zoom/Unzoom pane |
-| `Ctrl+B d` | Detach session |
-| `Ctrl+B [` | Scroll mode (q to exit) |
-
 ---
 
-## Template Counts Summary
+## Creating a New Project
 
-| Category | Templates |
-|----------|-----------|
-| Documentation (docs/) | 5 |
-| Claude Skills (claude/skills/) | 8 |
-| Flutter Code (skills/flutter/) | 8 |
-| Python API (skills/python_api/) | 10 |
-| Machine Learning (skills/machine_learning/) | 12 |
-| Agentic AI (skills/agentic/) | 20 |
-| DevOps (skills/devops/) | 9 |
-| Integration (skills/integration/) | 8 |
-| N8N Workflows (skills/n8n/) | 6 |
-| MQL5 (skills/mql5/) | 1 |
-| **Total** | **87+** |
-
----
-
-## Key Learnings
-
-### 1. Single Source of Truth
-All agents share ONE Knowledge Base. No silos.
-
-### 2. Session Recovery Pattern
-```
-GET /kb/resume → Full context in one call
-```
-
-### 3. Placeholder Convention
-Use `{{PLACEHOLDER}}` syntax for easy find-replace:
 ```bash
-sed -i '' 's/{{PROJECT_NAME}}/MyApp/g' file.md
+# 1. Clone template
+git clone https://github.com/Fokha/project_template.git my-app
+cd my-app
+
+# 2. Reset git
+rm -rf .git
+git init
+git add -A
+git commit -m "Initial commit from project_template"
+
+# 3. Initialize
+./scripts/init_project.sh "My App"
+
+# 4. Customize documentation
+cp docs/README_TEMPLATE.md README.md
+cp docs/CLAUDE_TEMPLATE.md CLAUDE.md
+
+# 5. Replace placeholders
+find . -type f -name "*.md" -exec sed -i '' 's/{{PROJECT_NAME}}/My App/g' {} \;
+
+# 6. Create GitHub repo
+gh repo create my-app --public --source . --push
 ```
-
-### 4. Documentation First
-Every project needs:
-- README.md (from README_TEMPLATE)
-- CLAUDE.md (from CLAUDE_TEMPLATE)
-- CHANGELOG.md
-- VERSION file
-
-### 5. Skills as Workflows
-Claude Code skills = reusable workflow checklists.
 
 ---
 
-## Documentation Index
+## Contributing
 
-| File | Purpose |
-|------|---------|
-| `docs/README_TEMPLATE.md` | Project README template |
-| `docs/PRD_TEMPLATE.md` | Product requirements template |
-| `docs/DEV_GUIDE_TEMPLATE.md` | Developer guide template |
-| `docs/PROJECT_STRUCTURE_TEMPLATE.md` | Codebase docs template |
-| `docs/CLAUDE_TEMPLATE.md` | AI agent docs template |
-| `claude/skills/README.md` | Skills setup guide |
-| `skills/README.md` | Code templates guide |
-| `skills/SKILLS_INDEX.md` | Full skills reference |
-| `agents/AGENT_SYSTEM.md` | Agent architecture |
-| `knowledge_base/migrations/LESSONS_LEARNED.md` | Architecture insights |
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
+5. Open a Pull Request
 
 ---
 
 ## License
 
-MIT - Use freely for any project.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-*Template Version: 2.1 | Last Updated: January 2026*
+## Acknowledgments
+
+- Built with patterns from [Claude Code](https://claude.ai/claude-code)
+- Agent architecture inspired by multi-agent systems research
+- Battle-tested in the Fokha Trading System
+
+---
+
+**Version:** 2.1 | **Last Updated:** January 2026
