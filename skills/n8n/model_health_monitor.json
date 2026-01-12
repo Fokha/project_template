@@ -1,0 +1,238 @@
+{
+  "name": "fokha_ml_model_health_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:5050/models/status",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Get Model Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -576,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:5050/ml/status",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Get ML Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -576,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {},
+        "options": {}
+      },
+      "name": "Merge Status",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -352,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze ML model health\nconst items = $input.all();\nconst modelStatus = items[0]?.json || {};\nconst mlStatus = items[1]?.json || {};\n\n// Check model health indicators\nlet issues = [];\nlet modelCount = 0;\nlet healthyModels = 0;\n\n// Check if models are loaded\nconst models = modelStatus.models || mlStatus.models || {};\nfor (const [name, status] of Object.entries(models)) {\n  modelCount++;\n  if (status === 'loaded' || status === 'active' || status === true) {\n    healthyModels++;\n  } else {\n    issues.push(`Model ${name}: ${status}`);\n  }\n}\n\n// Check last training time\nconst lastTrain = modelStatus.last_training || mlStatus.last_training;\nif (lastTrain) {\n  const daysSinceTrain = (Date.now() - new Date(lastTrain).getTime()) / (1000 * 60 * 60 * 24);\n  if (daysSinceTrain > 7) {\n    issues.push(`Models not trained in ${daysSinceTrain.toFixed(0)} days`);\n  }\n}\n\n// Check prediction count\nconst predictions = modelStatus.predictions_today || mlStatus.predictions || 0;\nif (predictions === 0) {\n  issues.push('No predictions made today');\n}\n\n// Check accuracy if available\nconst accuracy = modelStatus.accuracy || mlStatus.accuracy || 0;\nif (accuracy > 0 && accuracy < 0.5) {\n  issues.push(`Low accuracy: ${(accuracy * 100).toFixed(1)}%`);\n}\n\nconst healthPct = modelCount > 0 ? (healthyModels / modelCount * 100) : 0;\nconst hasIssues = issues.length > 0;\n\nreturn [{\n  json: {\n    hasIssues,\n    modelCount,\n    healthyModels,\n    healthPct: healthPct.toFixed(0),\n    predictions,\n    accuracy: (accuracy * 100).toFixed(1),\n    issues,\n    issueText: issues.join('\\n') || 'All systems nominal'\n  }\n}];"
+      },
+      "name": "Analyze Model Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasIssues }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Issues?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        96,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\n\nconst statusEmoji = data.hasIssues ? '\u26a0\ufe0f' : '\u2705';\nconst healthEmoji = parseFloat(data.healthPct) >= 80 ? '\ud83d\udfe2' : parseFloat(data.healthPct) >= 50 ? '\ud83d\udfe1' : '\ud83d\udd34';\n\nconst message = `${statusEmoji} <b>ML MODEL HEALTH ALERT</b>\\n\\n\ud83e\udd16 <b>Model Status</b>\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n${healthEmoji} Health: ${data.healthPct}% (${data.healthyModels}/${data.modelCount})\\n\ud83d\udcca Predictions Today: ${data.predictions}\\n\ud83c\udfaf Accuracy: ${data.accuracy}%\\n\\n\u26a0\ufe0f <b>Issues Detected</b>\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n${data.issueText}\\n\\n\ud83d\udca1 <b>Recommendation:</b> Check model training and data pipeline.\\n\\n\ud83d\udd50 <i>${new Date().toISOString()}</i>`;\n\nreturn [{ json: { message } }];"
+      },
+      "name": "Format Health Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1511520381",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Send Health Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pbJB5QiIDGaSoT3D",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "All Healthy",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        320,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {
+      "main": [
+        [
+          {
+            "node": "Get Model Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get ML Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Model Status": {
+      "main": [
+        [
+          {
+            "node": "Merge Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Status": {
+      "main": [
+        [
+          {
+            "node": "Merge Status",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Status": {
+      "main": [
+        [
+          {
+            "node": "Analyze Model Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Model Health": {
+      "main": [
+        [
+          {
+            "node": "Has Issues?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Issues?": {
+      "main": [
+        [
+          {
+            "node": "Format Health Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Healthy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Health Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Health Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "name": "fokha_market_data_collector_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Define symbols to collect\nconst symbols = ['XAUUSD', 'BTCUSD', 'EURUSD', 'GBPUSD', 'US30', 'XRPUSD', 'XAGUSD'];\nreturn symbols.map(s => ({ json: { symbol: s } }));"
+      },
+      "name": "Define Symbols",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:5050/live/candles?symbol={{ $json.symbol }}&timeframe=H1&limit=100",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Get Live Candles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -352,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and process candle data\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  const symbol = data.symbol || 'UNKNOWN';\n  const candles = data.candles || [];\n  \n  if (candles.length === 0) {\n    results.push({\n      symbol,\n      status: 'NO_DATA',\n      count: 0,\n      lastUpdate: null\n    });\n    continue;\n  }\n  \n  // Get latest candle\n  const latest = candles[candles.length - 1];\n  \n  // Calculate simple stats\n  const closes = candles.map(c => c.close || c.c || 0);\n  const avg = closes.reduce((a, b) => a + b, 0) / closes.length;\n  const lastClose = closes[closes.length - 1];\n  const change = ((lastClose - closes[0]) / closes[0] * 100).toFixed(2);\n  \n  results.push({\n    symbol,\n    status: 'OK',\n    count: candles.length,\n    lastClose: lastClose.toFixed(5),\n    avgPrice: avg.toFixed(5),\n    change: change + '%',\n    lastUpdate: latest.time || latest.t\n  });\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "name": "Validate Market Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equals",
+              "value2": "NO_DATA"
+            }
+          ]
+        }
+      },
+      "name": "Data Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        96,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:5050/data/refresh",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ symbol: $json.symbol }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Trigger Data Refresh",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:5050/batch/analyze",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ symbol: $json.symbol, timeframe: 'H1' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Trigger Batch Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate data collection results\nconst items = $input.all();\nlet okCount = 0;\nlet failCount = 0;\nlet symbols = [];\n\nfor (const item of items) {\n  if (item.json.status === 'OK') {\n    okCount++;\n    symbols.push(item.json.symbol);\n  } else {\n    failCount++;\n  }\n}\n\nreturn [{\n  json: {\n    collected: okCount,\n    failed: failCount,\n    symbols: symbols.join(', '),\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Define Symbols",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define Symbols": {
+      "main": [
+        [
+          {
+            "node": "Get Live Candles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Live Candles": {
+      "main": [
+        [
+          {
+            "node": "Validate Market Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Market Data": {
+      "main": [
+        [
+          {
+            "node": "Data Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Available?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Data Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Batch Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Data Refresh": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Batch Analysis": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

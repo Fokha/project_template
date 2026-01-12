@@ -1,0 +1,282 @@
+{
+  "name": "fokha_ml_signal_generator_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Define Major 5 symbols and strategies for ML scanning\nconst symbols = ['XAUUSD', 'XAGUSD', 'US30', 'BTCUSD', 'XRPUSD'];\nconst strategies = [0, 3, 8]; // TREND, MOMENTUM, SMC\n\nconst tasks = [];\nfor (const symbol of symbols) {\n  for (const strategy of strategies) {\n    tasks.push({ symbol, strategy });\n  }\n}\n\nreturn tasks.map(t => ({ json: t }));"
+      },
+      "name": "Define Symbol-Strategy Pairs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:5050/v3/predict/signal/profitable",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ symbol: $json.symbol, timeframe: 'H1', strategy: $json.strategy }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Get ML Signal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -352,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process v3 Profitable Signals\nconst items = $input.all();\nconst signals = [];\n\nfor (const item of items) {\n  const data = item.json.data || item.json;\n  \n  // v3 returns action: EXECUTE_TRADE or signal: BLOCKED\n  const action = data.action || 'NONE';\n  const signal = data.signal || data.direction || 'HOLD';\n  const confidence = data.confidence || 0;\n  const strength = data.strength || 0;\n  \n  // Only process executable trades\n  const isExecutable = action === 'EXECUTE_TRADE' && signal !== 'BLOCKED';\n  \n  signals.push({\n    symbol: data.symbol || 'UNKNOWN',\n    signal: isExecutable ? signal : 'SKIP',\n    action,\n    confidence: (confidence * 100).toFixed(1),\n    strength: (strength * 100).toFixed(1),\n    price: data.price || data.entry_price || 0,\n    stop_loss: data.stop_loss || data.sl || 0,\n    take_profit: data.take_profit || data.tp || 0,\n    trailing_stop: data.trailing_stop || 0,\n    risk_reward: data.risk_reward_ratio || 0,\n    asset_class: data.asset_class || 'UNKNOWN',\n    isStrong: isExecutable && confidence >= 0.7\n  });\n}\n\nreturn signals.map(s => ({ json: s }));"
+      },
+      "name": "Process Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isStrong }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Strong Signal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        96,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:5050/market/blackout/{{ $json.symbol }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Check News Blackout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.in_blackout === false }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Can Trade?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        544,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\n\nconst signalEmoji = data.signal === 'BUY' ? '\ud83d\udfe2' : data.signal === 'SELL' ? '\ud83d\udd34' : '\u26aa';\nconst formatPrice = (val) => val ? parseFloat(val).toFixed(2) : 'N/A';\n\nconst message = `${signalEmoji} <b>PROFITABLE SIGNAL - ${data.symbol}</b>\\n<i>${data.asset_class}</i>\\n\\n\ud83d\udcca <b>Direction:</b> ${data.signal}\\n\ud83d\udcaa <b>Confidence:</b> ${data.confidence}%\\n\ud83d\udcc8 <b>R:R Ratio:</b> 1:${data.risk_reward}\\n\\n\ud83c\udfaf <b>Trade Levels</b>\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\ud83d\udcb0 Entry: ${formatPrice(data.price)}\\n\ud83d\uded1 SL: ${formatPrice(data.stop_loss)}\\n\u2705 TP: ${formatPrice(data.take_profit)}\\n\ud83d\udd04 Trail: ${formatPrice(data.trailing_stop)}\\n\\n\ud83e\udd16 <i>Profitability Optimizer v1.1</i>`;\n\nreturn [{ json: { message, symbol: data.symbol, signal: data.signal } }];"
+      },
+      "name": "Format Signal Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1511520381",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Send ML Signal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pbJB5QiIDGaSoT3D",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Weak Signal Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        320,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "In Blackout Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        768,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Define Symbol-Strategy Pairs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define Symbol-Strategy Pairs": {
+      "main": [
+        [
+          {
+            "node": "Get ML Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Signal": {
+      "main": [
+        [
+          {
+            "node": "Process Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Signals": {
+      "main": [
+        [
+          {
+            "node": "Strong Signal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strong Signal?": {
+      "main": [
+        [
+          {
+            "node": "Check News Blackout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Weak Signal Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check News Blackout": {
+      "main": [
+        [
+          {
+            "node": "Can Trade?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Trade?": {
+      "main": [
+        [
+          {
+            "node": "Format Signal Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "In Blackout Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Signal Alert": {
+      "main": [
+        [
+          {
+            "node": "Send ML Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

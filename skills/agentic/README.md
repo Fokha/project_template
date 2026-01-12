@@ -189,3 +189,88 @@ User Request
        ▼
    Response
 ```
+
+---
+
+## Usage in Trading Systems
+
+The 20 agentic patterns are actively used in the Fokha Trading System:
+
+### Pattern Executor Service
+
+**File:** `python_ml/services/pattern_executor.py`
+
+The `PatternExecutor` class provides full implementation of all 20 patterns with SQLite persistence for memory patterns and ThreadPoolExecutor for parallel execution.
+
+### Trading System Integration
+
+| Pattern | Trading Use Case | Implementation |
+|---------|-----------------|----------------|
+| **Consensus** | Multi-timeframe voting | 8-TF weighted signal aggregation |
+| **Debate** | Bull vs Bear analysis | Opposing viewpoints before decision |
+| **ReAct Planning** | Trade execution | Step-by-step signal → validation → execution |
+| **Reflection** | Signal quality check | Confidence validation before notification |
+| **Parallelization** | Batch signal scanning | 5 symbols × 3 strategies simultaneously |
+| **Memory Management** | Context persistence | Trade history, agent state |
+| **Guardrails** | Risk validation | Position size limits, exposure checks |
+| **Fallback** | Error recovery | Retry logic with escalation |
+| **Meta-Learning** | Strategy adaptation | Weekly performance-based tuning |
+| **Orchestrator** | Multi-agent coordination | Master agent delegating to specialists |
+
+### Example: Signal Generation Pipeline
+
+```python
+# Uses 5 patterns combined:
+# 1. Parallelization - Scan all symbols
+# 2. Consensus - Multi-timeframe voting
+# 3. Reflection - Quality check
+# 4. Guardrails - Risk validation
+# 5. Memory - Store signal history
+
+result = pattern_executor.execute_pipeline([
+    ('parallelization', {'symbols': ['XAUUSD', 'US30', 'BTCUSD']}),
+    ('consensus', {'timeframes': ['M15', 'H1', 'H4', 'D1']}),
+    ('reflection', {'min_confidence': 0.70}),
+    ('guardrails', {'max_exposure': 0.30}),
+    ('memory', {'action': 'store'})
+])
+```
+
+### N8N Integration
+
+N8N workflows trigger agentic patterns via API:
+
+| Workflow | Pattern Used |
+|----------|-------------|
+| `ml_signal_generator.json` | Consensus + Reflection |
+| `model_health_monitor.json` | Guardrails + Fallback |
+| `weekly_report.json` | Memory Management |
+| `market_data_collector.json` | Parallelization |
+
+### Flutter App Integration
+
+The Flutter app uses agentic patterns through:
+
+- `AgentConfigService` - Fetches pattern configurations
+- `SuperAIProvider` - Multi-agent pipeline execution
+- `TradingProvider` - ReAct pattern for trade execution
+
+### API Endpoint Summary
+
+**Base URL:** `http://localhost:5050/agent/patterns/execute/`
+
+| Pattern | Endpoint | Status |
+|---------|----------|--------|
+| Parallelization | `/parallelization` | Active |
+| Reflection | `/reflection` | Active |
+| Consensus | `/consensus` | Active |
+| Debate | `/debate` | Active |
+| Meta-Learning | `/meta-learning` | Active |
+| Prompt Chaining | `/prompt-chaining` | Active |
+| Planning | `/planning` | Active |
+| Memory | `/memory` | Active |
+| Orchestrator | `/orchestrator` | Active |
+| Evaluator | `/evaluator` | Active |
+| Hierarchical | `/hierarchical` | Active |
+| Self-Improvement | `/self-improvement` | Active |
+| Fallback | `/fallback` | Active |

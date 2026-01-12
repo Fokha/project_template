@@ -1,0 +1,182 @@
+{
+  "name": "fokha_weekly_report_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 0"
+            }
+          ]
+        }
+      },
+      "name": "Every Sunday 6PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:5050/live/trades/history",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Get Trade History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -576,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate weekly performance metrics\nconst data = $input.all()[0].json;\nconst trades = data.trades || [];\n\n// Filter trades from last 7 days\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst weekTrades = trades.filter(t => new Date(t.close_time || t.time) >= weekAgo);\n\nif (weekTrades.length === 0) {\n  return [{ json: { hasData: false, message: 'No trades this week' } }];\n}\n\n// Calculate metrics\nlet totalPL = 0;\nlet wins = 0;\nlet losses = 0;\nlet bestTrade = null;\nlet worstTrade = null;\nlet symbolPL = {};\n\nfor (const trade of weekTrades) {\n  const pl = trade.profit || 0;\n  totalPL += pl;\n  \n  if (pl >= 0) wins++;\n  else losses++;\n  \n  if (!bestTrade || pl > bestTrade.profit) bestTrade = trade;\n  if (!worstTrade || pl < worstTrade.profit) worstTrade = trade;\n  \n  const sym = trade.symbol || 'Unknown';\n  symbolPL[sym] = (symbolPL[sym] || 0) + pl;\n}\n\nconst winRate = weekTrades.length > 0 ? (wins / weekTrades.length * 100).toFixed(1) : 0;\nconst avgPL = weekTrades.length > 0 ? (totalPL / weekTrades.length).toFixed(2) : 0;\n\n// Sort symbols by P/L\nconst sortedSymbols = Object.entries(symbolPL)\n  .sort((a, b) => b[1] - a[1])\n  .map(([sym, pl]) => `${sym}: $${pl.toFixed(2)}`);\n\nreturn [{\n  json: {\n    hasData: true,\n    totalTrades: weekTrades.length,\n    wins,\n    losses,\n    totalPL: totalPL.toFixed(2),\n    winRate,\n    avgPL,\n    bestTrade: bestTrade ? `${bestTrade.symbol} +$${bestTrade.profit.toFixed(2)}` : 'N/A',\n    worstTrade: worstTrade ? `${worstTrade.symbol} $${worstTrade.profit.toFixed(2)}` : 'N/A',\n    symbolBreakdown: sortedSymbols.slice(0, 5).join('\\n')\n  }\n}];"
+      },
+      "name": "Calculate Weekly Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasData }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Trade Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\n\nconst plEmoji = parseFloat(data.totalPL) >= 0 ? '\ud83d\udcb0' : '\ud83d\udcb8';\nconst resultEmoji = parseFloat(data.totalPL) >= 0 ? '\ud83d\udcc8' : '\ud83d\udcc9';\n\nconst message = `${resultEmoji} <b>WEEKLY TRADING REPORT</b>\n\n\ud83d\udcc5 <b>Period:</b> Last 7 Days\n\n\ud83d\udcca <b>SUMMARY</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\ud83c\udfaf <b>Total Trades:</b> ${data.totalTrades}\n\u2705 <b>Wins:</b> ${data.wins}\n\u274c <b>Losses:</b> ${data.losses}\n\ud83d\udcc8 <b>Win Rate:</b> ${data.winRate}%\n${plEmoji} <b>Total P/L:</b> $${data.totalPL}\n\ud83d\udcb5 <b>Avg P/L:</b> $${data.avgPL}\n\n\ud83c\udfc6 <b>HIGHLIGHTS</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\ud83e\udd47 <b>Best Trade:</b> ${data.bestTrade}\n\ud83e\udd49 <b>Worst Trade:</b> ${data.worstTrade}\n\n\ud83d\udccb <b>BY SYMBOL</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n${data.symbolBreakdown}\n\n\ud83d\udd52 <i>Generated: ${new Date().toISOString()}</i>`;\n\nreturn [{ json: { message } }];"
+      },
+      "name": "Format Weekly Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1511520381",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Send Weekly Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pbJB5QiIDGaSoT3D",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "No Trades This Week",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        96,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Every Sunday 6PM": {
+      "main": [
+        [
+          {
+            "node": "Get Trade History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Trade History": {
+      "main": [
+        [
+          {
+            "node": "Calculate Weekly Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Weekly Metrics": {
+      "main": [
+        [
+          {
+            "node": "Has Trade Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Trade Data?": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Trades This Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Report": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

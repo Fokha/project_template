@@ -27,18 +27,31 @@ skills/
 
 ## Quick Reference Matrix
 
-| Category | Skills | Files | Complexity |
-|----------|--------|-------|------------|
-| **Flutter** | 8 patterns | 8 templates | ⭐⭐⭐ |
-| **Python API** | 10 patterns | 10 templates | ⭐⭐⭐ |
-| **Machine Learning** | 12 patterns | 12 templates | ⭐⭐⭐⭐ |
-| **MQL5** | 8 patterns | 8 templates | ⭐⭐⭐⭐ |
-| **DevOps** | 10 patterns | 10 templates | ⭐⭐⭐ |
-| **N8N** | 6 patterns | 6 templates | ⭐⭐ |
-| **Agentic AI** | 20 patterns | 20 templates | ⭐⭐⭐⭐⭐ |
-| **Integration** | 8 patterns | 8 templates | ⭐⭐⭐⭐ |
+| Category | Skills | Files | Complexity | Used In Trading |
+|----------|--------|-------|------------|-----------------|
+| **Flutter** | 8 patterns | 8 templates | ⭐⭐⭐ | Yes (fokha_apps) |
+| **Python API** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (api_server.py) |
+| **Machine Learning** | 12 patterns | 12 templates | ⭐⭐⭐⭐ | Yes (ML models) |
+| **MQL5** | 8 patterns | 10 templates | ⭐⭐⭐⭐ | Yes (Ultimate EA v19) |
+| **DevOps** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (automation) |
+| **N8N** | 10 patterns | 10 templates | ⭐⭐ | Yes (45 workflows) |
+| **Agentic AI** | 21 patterns | 21 templates | ⭐⭐⭐⭐⭐ | Yes (PatternExecutor) |
+| **Integration** | 8 patterns | 8 templates | ⭐⭐⭐⭐ | Yes (bridge) |
 
-**Total: 82 skill patterns**
+**Total: 87 skill patterns**
+
+### Trading System Usage Summary
+
+| Skill Category | Integration Point | Active Usage |
+|----------------|-------------------|--------------|
+| Flutter | fokha_apps (6 apps) | AgentConfigService, MLSignalService |
+| Python API | localhost:5050 | 242+ endpoints, 577 tests |
+| Machine Learning | SignalClassificationModel | 8-TF consensus voting |
+| MQL5 | Ultimate System v19.0 | PropFirm profiles, 25 strategies |
+| DevOps | Oracle Cloud + Local | Active-active failover |
+| N8N | 45 workflows | Signal generation, monitoring |
+| Agentic | PatternExecutor | 13 execution endpoints |
+| Integration | WebSocket + REST | Real-time + batch processing |
 
 ---
 
@@ -189,12 +202,29 @@ I[Name]    → IMyInterface (rare in MQL5)
 
 | # | Pattern | Template | Description |
 |---|---------|----------|-------------|
-| 1 | **API Trigger** | `api_trigger_template.json` | HTTP request workflow |
-| 2 | **Scheduled Job** | `scheduled_template.json` | Cron-based workflow |
-| 3 | **Webhook Handler** | `webhook_template.json` | Incoming webhook |
-| 4 | **Notification Hub** | `notification_template.json` | Multi-channel alerts |
-| 5 | **Data Pipeline** | `pipeline_template.json` | ETL workflow |
-| 6 | **Error Handler** | `error_handler_template.json` | Error recovery flow |
+| 1 | **API Poller** | `api_poller.json` | Scheduled API polling |
+| 2 | **Cron Workflow** | `cron_workflow.json` | Time-based triggers |
+| 3 | **Webhook Handler** | `webhook_handler.json` | Incoming webhooks |
+| 4 | **Notification Hub** | `notification_hub.json` | Multi-channel alerts |
+| 5 | **Data Pipeline** | `data_pipeline.json` | ETL workflow |
+| 6 | **Error Handler** | `error_handler.json` | Error recovery flow |
+| 7 | **ML Signal Generator** | `ml_signal_generator.json` | ML predictions → Telegram |
+| 8 | **Market Data Collector** | `market_data_collector.json` | Multi-symbol data fetch |
+| 9 | **Model Health Monitor** | `model_health_monitor.json` | ML model health alerts |
+| 10 | **Weekly Report** | `weekly_report.json` | Performance summary |
+
+### Trading System Integration
+
+These workflows are actively used in the Fokha Trading System (45 production workflows):
+
+| Workflow Type | Production Count | Purpose |
+|---------------|-----------------|---------|
+| Signal Generation | 8 | ML predictions, telegram alerts |
+| Data Collection | 6 | Market data, sentiment |
+| Monitoring | 10 | Health, performance, alerts |
+| Reporting | 5 | Daily/weekly reports |
+| Training | 4 | Model retraining pipelines |
+| Other | 12 | Misc automation |
 
 ### N8N Workflow Naming
 ```
@@ -242,7 +272,7 @@ The recommended pattern for complex multi-agent systems:
 - `agents/prompts/THE_MASTER.md` - Architect template
 - `agents/prompts/SPECIALIST_AGENT_TEMPLATE.md` - Generic specialist
 
-### 20+ Agentic Patterns Extracted
+### 21 Agentic Patterns Extracted
 
 | # | Category | Pattern | Template |
 |---|----------|---------|----------|
@@ -284,6 +314,26 @@ Observation: [Note what I learned]
 ... (repeat as needed)
 Final Answer: [Clear recommendation with confidence %]
 ```
+
+### Trading System Integration
+
+All 21 patterns are implemented in `services/pattern_executor.py` with 13 API endpoints:
+
+| Pattern | Trading Use Case | API Endpoint |
+|---------|-----------------|--------------|
+| Consensus | Multi-timeframe voting | `/agent/patterns/execute/consensus` |
+| Debate | Bull vs Bear analysis | `/agent/patterns/execute/debate` |
+| Parallelization | Batch signal scanning | `/agent/patterns/execute/parallelization` |
+| Reflection | Signal quality check | `/agent/patterns/execute/reflection` |
+| Memory | Trade history persistence | `/agent/patterns/execute/memory` |
+| Guardrails | Risk validation | (internal) |
+| Meta-Learning | Strategy adaptation | `/agent/patterns/execute/meta-learning` |
+
+**Active in Production:**
+- PatternExecutor class with SQLite persistence
+- ThreadPoolExecutor for parallel execution
+- N8N workflows trigger patterns via API
+- Flutter app uses AgentConfigService
 
 ---
 
