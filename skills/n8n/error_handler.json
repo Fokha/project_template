@@ -1,0 +1,527 @@
+{
+  "_meta": {
+    "template": "error_handler",
+    "version": "1.0.0",
+    "description": "Error handling with retry and escalation template",
+    "placeholders": {
+      "{{WORKFLOW_NAME}}": "Name of the workflow",
+      "{{MAX_RETRIES}}": "Maximum retry attempts (default: 3)",
+      "{{RETRY_DELAY_MS}}": "Delay between retries in ms (default: 5000)",
+      "{{ESCALATION_CHANNEL}}": "Channel for escalation (telegram, email, etc.)"
+    }
+  },
+  "name": "{{WORKFLOW_NAME}}",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/error-handler",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "error-webhook",
+      "name": "Error Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "error-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and categorize the error\nconst input = $input.first().json;\nconst body = input.body || input;\n\nconst error = {\n  id: `err_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  source: body.source || body.workflow || 'unknown',\n  type: body.type || body.errorType || 'UNKNOWN',\n  message: body.message || body.error || 'No message provided',\n  stack: body.stack || null,\n  context: body.context || {},\n  severity: body.severity || 'medium',\n  retryCount: body.retryCount || 0,\n  maxRetries: body.maxRetries || 3,\n  originalPayload: body.payload || null\n};\n\n// Categorize severity\nif (error.type.includes('TIMEOUT') || error.type.includes('CONNECTION')) {\n  error.category = 'network';\n  error.retryable = true;\n} else if (error.type.includes('AUTH') || error.type.includes('PERMISSION')) {\n  error.category = 'auth';\n  error.retryable = false;\n  error.severity = 'high';\n} else if (error.type.includes('VALIDATION') || error.type.includes('INVALID')) {\n  error.category = 'validation';\n  error.retryable = false;\n} else if (error.type.includes('RATE_LIMIT')) {\n  error.category = 'rate_limit';\n  error.retryable = true;\n  error.retryDelay = 60000; // 1 minute for rate limits\n} else {\n  error.category = 'general';\n  error.retryable = error.retryCount < error.maxRetries;\n}\n\nreturn { json: error };"
+      },
+      "id": "parse-error",
+      "name": "Parse Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-retryable",
+              "leftValue": "={{ $json.retryable }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "under-limit",
+              "leftValue": "={{ $json.retryCount }}",
+              "rightValue": "={{ $json.maxRetries }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "should-retry",
+      "name": "Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.retryDelay || 5000 }}",
+        "unit": "milliseconds"
+      },
+      "id": "wait-retry",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare retry request\nconst error = $input.first().json;\n\n// Exponential backoff\nconst baseDelay = error.retryDelay || 5000;\nconst backoffMultiplier = Math.pow(2, error.retryCount);\nconst nextDelay = Math.min(baseDelay * backoffMultiplier, 60000); // Cap at 1 minute\n\nconst retryPayload = {\n  ...error.originalPayload,\n  _retry: {\n    attempt: error.retryCount + 1,\n    maxAttempts: error.maxRetries,\n    originalErrorId: error.id,\n    nextDelay: nextDelay\n  }\n};\n\nreturn {\n  json: {\n    retryPayload: retryPayload,\n    endpoint: error.context.endpoint || error.source,\n    method: error.context.method || 'POST'\n  }\n};"
+      },
+      "id": "prepare-retry",
+      "name": "Prepare Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 200]
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "={{ $json.endpoint }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.retryPayload) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "execute-retry",
+      "name": "Execute Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1240, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "retry-success",
+              "leftValue": "={{ $json.statusCode || $json.status }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "retry-not-error",
+              "leftValue": "={{ $json.statusCode || $json.status }}",
+              "rightValue": 300,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-retry",
+      "name": "Retry Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1440, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful retry\nconst input = $input.first().json;\n\nreturn {\n  json: {\n    status: 'recovered',\n    message: 'Error recovered after retry',\n    timestamp: new Date().toISOString(),\n    response: input\n  }\n};"
+      },
+      "id": "log-recovery",
+      "name": "Log Recovery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1640, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for escalation - all retries failed\nconst parseError = $('Parse Error').first().json;\n\nconst escalation = {\n  id: parseError.id,\n  severity: parseError.severity === 'medium' ? 'high' : 'critical',\n  category: parseError.category,\n  source: parseError.source,\n  message: parseError.message,\n  retryAttempts: parseError.retryCount + 1,\n  maxRetries: parseError.maxRetries,\n  timestamp: new Date().toISOString(),\n  requiresManualIntervention: true,\n  context: parseError.context\n};\n\nreturn { json: escalation };"
+      },
+      "id": "prepare-escalation",
+      "name": "Prepare Escalation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "critical",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "critical"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "high",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "high"
+            }
+          ],
+          "fallbackOutput": {
+            "enabled": true
+          }
+        },
+        "options": {}
+      },
+      "id": "severity-router",
+      "name": "Route by Severity",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1040, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "\\ud83d\\udea8 **CRITICAL ERROR**\\n\\nSource: {{ $json.source }}\\nCategory: {{ $json.category }}\\n\\nMessage:\\n```\\n{{ $json.message }}\\n```\\n\\nRetry Attempts: {{ $json.retryAttempts }}/{{ $json.maxRetries }}\\n\\n\\u26a0\\ufe0f **Requires immediate attention!**",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-critical",
+      "name": "Notify Critical",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1260, 320],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "\\u26a0\\ufe0f **HIGH SEVERITY ERROR**\\n\\nSource: {{ $json.source }}\\nCategory: {{ $json.category }}\\n\\nMessage: {{ $json.message }}\\n\\nRetry Attempts: {{ $json.retryAttempts }}/{{ $json.maxRetries }}\\n\\nPlease investigate when possible.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-high",
+      "name": "Notify High",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1260, 440],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log non-critical errors for later review\nconst error = $input.first().json;\n\nconsole.log('Non-critical error logged:', JSON.stringify(error, null, 2));\n\nreturn {\n  json: {\n    status: 'logged',\n    errorId: error.id,\n    severity: error.severity,\n    message: 'Error logged for review'\n  }\n};"
+      },
+      "id": "log-error",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 560]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all outcomes\nconst items = $input.all();\nlet result = items[0]?.json || { status: 'processed' };\n\nreturn {\n  json: {\n    ...result,\n    handled_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "merge-outcomes",
+      "name": "Merge Outcomes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 400]
+    }
+  ],
+  "connections": {
+    "Error Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Error": {
+      "main": [
+        [
+          {
+            "node": "Should Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Retry?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Prepare Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Retry": {
+      "main": [
+        [
+          {
+            "node": "Execute Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Retry": {
+      "main": [
+        [
+          {
+            "node": "Retry Success?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Success?": {
+      "main": [
+        [
+          {
+            "node": "Log Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Recovery": {
+      "main": [
+        [
+          {
+            "node": "Merge Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Escalation": {
+      "main": [
+        [
+          {
+            "node": "Route by Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Severity": {
+      "main": [
+        [
+          {
+            "node": "Notify Critical",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify High",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Critical": {
+      "main": [
+        [
+          {
+            "node": "Merge Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify High": {
+      "main": [
+        [
+          {
+            "node": "Merge Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Merge Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Outcomes": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "error-handling",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "retry",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {}
+}

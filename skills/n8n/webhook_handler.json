@@ -1,0 +1,442 @@
+{
+  "_meta": {
+    "template": "webhook_handler",
+    "version": "1.0.0",
+    "description": "HTTP webhook endpoint handler template",
+    "placeholders": {
+      "{{WORKFLOW_NAME}}": "Name of the workflow",
+      "{{WEBHOOK_PATH}}": "URL path (e.g., '/my-webhook')",
+      "{{ALLOWED_METHODS}}": "HTTP methods (GET, POST, etc.)",
+      "{{AUTH_HEADER}}": "Authentication header name"
+    }
+  },
+  "name": "{{WORKFLOW_NAME}}",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "={{$parameter.httpMethod || 'POST'}}",
+        "path": "{{WEBHOOK_PATH}}",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "data",
+          "rawBody": true
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "{{WEBHOOK_PATH}}"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and parse incoming request\nconst input = $input.first();\nconst body = input.json.body || input.json;\nconst headers = input.json.headers || {};\nconst query = input.json.query || {};\n\n// Extract common fields\nconst request = {\n  method: headers['x-http-method'] || 'POST',\n  timestamp: new Date().toISOString(),\n  ip: headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown',\n  userAgent: headers['user-agent'] || 'unknown',\n  contentType: headers['content-type'] || 'application/json',\n  body: body,\n  query: query\n};\n\n// Basic validation\nlet validation = { valid: true, errors: [] };\n\n// Example: require certain fields\n// if (!body.event_type) {\n//   validation.valid = false;\n//   validation.errors.push('Missing event_type');\n// }\n\nreturn {\n  json: {\n    request: request,\n    validation: validation\n  }\n};"
+      },
+      "id": "validate-request",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-valid",
+              "leftValue": "={{ $json.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route based on event type or other criteria\nconst input = $input.first().json;\nconst body = input.request.body;\n\n// Determine route based on event_type, action, etc.\nlet route = 'default';\nlet data = body;\n\nif (body.event_type) {\n  route = body.event_type;\n} else if (body.action) {\n  route = body.action;\n} else if (body.type) {\n  route = body.type;\n}\n\nreturn {\n  json: {\n    route: route,\n    data: data,\n    request: input.request\n  }\n};"
+      },
+      "id": "route-request",
+      "name": "Route Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            }
+          ],
+          "fallbackOutput": {
+            "enabled": true
+          }
+        },
+        "options": {}
+      },
+      "id": "switch-route",
+      "name": "Switch Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1040, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle CREATE event\nconst input = $input.first().json;\nconst data = input.data;\n\n// Process create logic here\nconst result = {\n  action: 'created',\n  id: data.id || `new_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  data: data\n};\n\nreturn { json: result };"
+      },
+      "id": "handle-create",
+      "name": "Handle Create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle UPDATE event\nconst input = $input.first().json;\nconst data = input.data;\n\n// Process update logic here\nconst result = {\n  action: 'updated',\n  id: data.id,\n  timestamp: new Date().toISOString(),\n  changes: data\n};\n\nreturn { json: result };"
+      },
+      "id": "handle-update",
+      "name": "Handle Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle DELETE event\nconst input = $input.first().json;\nconst data = input.data;\n\n// Process delete logic here\nconst result = {\n  action: 'deleted',\n  id: data.id,\n  timestamp: new Date().toISOString()\n};\n\nreturn { json: result };"
+      },
+      "id": "handle-delete",
+      "name": "Handle Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle DEFAULT/UNKNOWN event\nconst input = $input.first().json;\n\nconst result = {\n  action: 'processed',\n  route: input.route,\n  timestamp: new Date().toISOString(),\n  data: input.data\n};\n\nreturn { json: result };"
+      },
+      "id": "handle-default",
+      "name": "Handle Default",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all handled results\nconst items = $input.all();\nlet result = items[0]?.json || {};\n\nreturn {\n  json: {\n    success: true,\n    result: result,\n    processed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build error response\nconst input = $input.first().json;\n\nreturn {\n  json: {\n    success: false,\n    error: 'Validation failed',\n    errors: input.validation?.errors || ['Unknown validation error'],\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "build-error",
+      "name": "Build Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Processed-At",
+                "value": "={{ new Date().toISOString() }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1040, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Route Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Request": {
+      "main": [
+        [
+          {
+            "node": "Switch Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Route": {
+      "main": [
+        [
+          {
+            "node": "Handle Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Default",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Create": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Update": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Delete": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Default": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "webhook",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "api",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {}
+}

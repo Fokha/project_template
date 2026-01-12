@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 .agents/*)",
+      "Bash(./scripts/*)",
+      "Bash(git *)",
+      "Bash(pytest *)",
+      "Read(.agents/*)",
+      "Read(scripts/*)",
+      "Read(docs/*)",
+      "Write(.agents/sessions/*)",
+      "Write(tests/*)",
+      "Write(CHANGELOG.md)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "preToolCall": []
+  },
+  "env": {
+    "PROJECT_TYPE": "fokha-template",
+    "AGENT_TOOLS": ".agents/agent_tools.py"
+  }
+}

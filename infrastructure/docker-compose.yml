@@ -1,0 +1,195 @@
+version: '3.8'
+
+# ============================================
+# FOKHA PROJECT TEMPLATE - DOCKER COMPOSE
+# ============================================
+
+services:
+
+  # ----------------------------------------
+  # Python API Server
+  # ----------------------------------------
+  api:
+    build:
+      context: ../api
+      dockerfile: ../infrastructure/Dockerfile.api
+    container_name: ${PROJECT_NAME:-myproject}-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-5050}:5050"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - PYTHONUNBUFFERED=1
+      - DATABASE_PATH=/app/data/kb.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - api_data:/app/data
+      - api_logs:/app/logs
+      - kb_storage:/app/knowledge_base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - project-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  # ----------------------------------------
+  # n8n Workflow Automation
+  # ----------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ${PROJECT_NAME:-myproject}-n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://${PUBLIC_IP:-localhost}:5678/
+      - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8npassword}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - n8n_backups:/home/node/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - project-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ----------------------------------------
+  # PostgreSQL Database (for n8n)
+  # ----------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${PROJECT_NAME:-myproject}-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-n8npassword}
+      - POSTGRES_DB=n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ----------------------------------------
+  # Redis Cache (Optional)
+  # ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME:-myproject}-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project-network
+    profiles:
+      - with-redis
+
+  # ----------------------------------------
+  # Nginx Reverse Proxy (Optional)
+  # ----------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: ${PROJECT_NAME:-myproject}-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - n8n
+    networks:
+      - project-network
+    profiles:
+      - with-nginx
+
+  # ----------------------------------------
+  # Watchtower (Auto-update containers)
+  # ----------------------------------------
+  watchtower:
+    image: containrrr/watchtower
+    container_name: ${PROJECT_NAME:-myproject}-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400  # Check daily
+      - WATCHTOWER_INCLUDE_STOPPED=false
+    command: --interval 86400 ${PROJECT_NAME:-myproject}-n8n ${PROJECT_NAME:-myproject}-postgres
+    networks:
+      - project-network
+    profiles:
+      - with-watchtower
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  api_data:
+    name: ${PROJECT_NAME:-myproject}_api_data
+  api_logs:
+    name: ${PROJECT_NAME:-myproject}_api_logs
+  kb_storage:
+    name: ${PROJECT_NAME:-myproject}_kb_storage
+  n8n_data:
+    name: ${PROJECT_NAME:-myproject}_n8n_data
+  n8n_backups:
+    name: ${PROJECT_NAME:-myproject}_n8n_backups
+  postgres_data:
+    name: ${PROJECT_NAME:-myproject}_postgres_data
+  redis_data:
+    name: ${PROJECT_NAME:-myproject}_redis_data
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  project-network:
+    name: ${PROJECT_NAME:-myproject}_network
+    driver: bridge

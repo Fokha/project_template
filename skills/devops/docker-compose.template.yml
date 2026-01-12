@@ -1,0 +1,136 @@
+# ═══════════════════════════════════════════════════════════════
+# DOCKER COMPOSE - {{PROJECT_NAME}}
+# Multi-service container orchestration
+# ═══════════════════════════════════════════════════════════════
+#
+# Usage:
+# 1. Copy to your project root
+# 2. Replace {{PROJECT_NAME}} and other placeholders
+# 3. Run: docker-compose up -d
+#
+# ═══════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # API SERVICE
+  # ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: {{project_name}}-api
+    restart: unless-stopped
+    ports:
+      - "{{API_PORT}}:5050"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./config:/app/config
+    environment:
+      - FLASK_ENV=production
+      - DB_PATH=/app/data/{{project_name}}.db
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - {{project_name}}-network
+
+  # ─────────────────────────────────────────────────────────────
+  # N8N AUTOMATION
+  # ─────────────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: {{project_name}}-n8n
+    restart: unless-stopped
+    ports:
+      - "{{N8N_PORT}}:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER={{N8N_USER}}
+      - N8N_BASIC_AUTH_PASSWORD={{N8N_PASSWORD}}
+      - N8N_HOST={{DOMAIN}}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://{{DOMAIN}}/
+      - GENERIC_TIMEZONE=UTC
+    depends_on:
+      - api
+    networks:
+      - {{project_name}}-network
+
+  # ─────────────────────────────────────────────────────────────
+  # WEBSOCKET SERVER (Optional)
+  # ─────────────────────────────────────────────────────────────
+  websocket:
+    build:
+      context: ./websocket
+      dockerfile: Dockerfile
+    container_name: {{project_name}}-ws
+    restart: unless-stopped
+    ports:
+      - "{{WS_PORT}}:8765"
+    environment:
+      - API_URL=http://api:5050
+    depends_on:
+      - api
+    networks:
+      - {{project_name}}-network
+
+  # ─────────────────────────────────────────────────────────────
+  # NGINX REVERSE PROXY (Optional)
+  # ─────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: {{project_name}}-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - n8n
+    networks:
+      - {{project_name}}-network
+
+  # ─────────────────────────────────────────────────────────────
+  # WATCHTOWER (Auto-update containers)
+  # ─────────────────────────────────────────────────────────────
+  watchtower:
+    image: containrrr/watchtower
+    container_name: {{project_name}}-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400  # Daily check
+      - WATCHTOWER_NOTIFICATIONS=email
+    networks:
+      - {{project_name}}-network
+
+# ─────────────────────────────────────────────────────────────
+# NETWORKS
+# ─────────────────────────────────────────────────────────────
+networks:
+  {{project_name}}-network:
+    driver: bridge
+
+# ─────────────────────────────────────────────────────────────
+# VOLUMES (Named volumes for persistence)
+# ─────────────────────────────────────────────────────────────
+volumes:
+  data:
+    driver: local
+  n8n_data:
+    driver: local

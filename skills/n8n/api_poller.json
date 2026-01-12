@@ -1,0 +1,379 @@
+{
+  "_meta": {
+    "template": "api_poller",
+    "version": "1.0.0",
+    "description": "Periodic API polling with state tracking template",
+    "placeholders": {
+      "{{WORKFLOW_NAME}}": "Name of the workflow",
+      "{{POLL_INTERVAL_MINUTES}}": "Polling interval in minutes",
+      "{{API_ENDPOINT}}": "API endpoint to poll",
+      "{{STATE_KEY}}": "Key for tracking state between polls"
+    }
+  },
+  "name": "{{WORKFLOW_NAME}}",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": "={{$parameter.pollInterval || 15}}"
+            }
+          ]
+        }
+      },
+      "id": "poll-trigger",
+      "name": "Poll Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load previous state from static data\nconst staticData = $getWorkflowStaticData('global');\n\nconst state = {\n  lastPollTime: staticData.lastPollTime || null,\n  lastItemId: staticData.lastItemId || null,\n  lastItemTimestamp: staticData.lastItemTimestamp || null,\n  pollCount: (staticData.pollCount || 0) + 1,\n  currentPollTime: new Date().toISOString()\n};\n\nconsole.log('Previous state:', state);\n\nreturn { json: state };"
+      },
+      "id": "load-state",
+      "name": "Load State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.API_BASE_URL}}/{{API_ENDPOINT}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "since",
+              "value": "={{ $json.lastItemTimestamp || '' }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "fetch-data",
+      "name": "Fetch Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-check",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-response",
+      "name": "Check Response",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and filter new items\nconst input = $input.first().json;\nconst body = input.body || input.data || input;\n\n// Get items from response (adjust path as needed)\nlet items = body.items || body.data || body.results || [];\nif (!Array.isArray(items)) {\n  items = [items];\n}\n\n// Get previous state from node 'Load State'\nconst previousState = $('Load State').first().json;\nconst lastItemId = previousState.lastItemId;\nconst lastTimestamp = previousState.lastItemTimestamp;\n\n// Filter to only new items\nlet newItems = items.filter(item => {\n  // Check by ID if available\n  if (item.id && lastItemId) {\n    return item.id > lastItemId;\n  }\n  // Check by timestamp if available\n  if ((item.timestamp || item.created_at) && lastTimestamp) {\n    const itemTime = new Date(item.timestamp || item.created_at).getTime();\n    const lastTime = new Date(lastTimestamp).getTime();\n    return itemTime > lastTime;\n  }\n  // If no state, all items are new\n  return !lastItemId && !lastTimestamp;\n});\n\n// Calculate new state\nlet newState = {\n  lastPollTime: new Date().toISOString(),\n  lastItemId: items.length > 0 ? items[items.length - 1].id : lastItemId,\n  lastItemTimestamp: items.length > 0 ? \n    (items[items.length - 1].timestamp || items[items.length - 1].created_at) : \n    lastTimestamp,\n  pollCount: previousState.pollCount\n};\n\nreturn {\n  json: {\n    totalFetched: items.length,\n    newItemsCount: newItems.length,\n    newItems: newItems,\n    newState: newState\n  }\n};"
+      },
+      "id": "extract-new",
+      "name": "Extract New Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-new",
+              "leftValue": "={{ $json.newItemsCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-new-items",
+      "name": "Has New Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "newItems",
+        "options": {}
+      },
+      "id": "split-items",
+      "name": "Split Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1440, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process each new item\nconst item = $input.first().json;\n\n// Transform/enrich item as needed\nconst processed = {\n  id: item.id,\n  type: item.type || 'unknown',\n  data: item,\n  processed_at: new Date().toISOString()\n};\n\nreturn { json: processed };"
+      },
+      "id": "process-item",
+      "name": "Process Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1640, 100]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "aggregate",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1840, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Save state to static data\nconst staticData = $getWorkflowStaticData('global');\nconst input = $input.first().json;\n\n// Get new state from extraction\nlet newState;\ntry {\n  const extractNode = $('Extract New Items').first();\n  newState = extractNode.json.newState;\n} catch (e) {\n  // Use current time as fallback\n  newState = {\n    lastPollTime: new Date().toISOString(),\n    lastItemId: staticData.lastItemId,\n    lastItemTimestamp: staticData.lastItemTimestamp,\n    pollCount: (staticData.pollCount || 0) + 1\n  };\n}\n\n// Update static data\nstaticData.lastPollTime = newState.lastPollTime;\nstaticData.lastItemId = newState.lastItemId;\nstaticData.lastItemTimestamp = newState.lastItemTimestamp;\nstaticData.pollCount = newState.pollCount;\n\nconsole.log('Saved new state:', newState);\n\nreturn {\n  json: {\n    message: 'State saved',\n    state: newState\n  }\n};"
+      },
+      "id": "save-state",
+      "name": "Save State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle API error\nconst input = $input.first().json;\n\nconsole.error('API polling failed:', input);\n\nreturn {\n  json: {\n    error: true,\n    message: input.error || input.message || 'API request failed',\n    statusCode: input.statusCode,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "handle-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "\\u26a0\\ufe0f **API Poller Error**\\n\\n{{WORKFLOW_NAME}}\\n\\nError: {{ $json.message }}\\nStatus: {{ $json.statusCode }}\\nTime: {{ $json.timestamp }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-error",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1240, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Poll Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load State": {
+      "main": [
+        [
+          {
+            "node": "Fetch Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Data": {
+      "main": [
+        [
+          {
+            "node": "Check Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Response": {
+      "main": [
+        [
+          {
+            "node": "Extract New Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract New Items": {
+      "main": [
+        [
+          {
+            "node": "Has New Items?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Items?": {
+      "main": [
+        [
+          {
+            "node": "Split Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Items": {
+      "main": [
+        [
+          {
+            "node": "Process Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Item": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Save State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Notify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {
+    "global": {
+      "lastPollTime": null,
+      "lastItemId": null,
+      "lastItemTimestamp": null,
+      "pollCount": 0
+    }
+  },
+  "tags": [
+    {
+      "name": "polling",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "api",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {}
+}

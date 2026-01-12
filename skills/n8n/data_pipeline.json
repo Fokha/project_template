@@ -1,0 +1,544 @@
+{
+  "_meta": {
+    "template": "data_pipeline",
+    "version": "1.0.0",
+    "description": "ETL data pipeline workflow template",
+    "placeholders": {
+      "{{WORKFLOW_NAME}}": "Name of the workflow",
+      "{{SOURCE_TYPE}}": "Data source type (api, database, file)",
+      "{{DESTINATION_TYPE}}": "Destination type (api, database, file)",
+      "{{BATCH_SIZE}}": "Number of records per batch (default: 100)"
+    }
+  },
+  "name": "{{WORKFLOW_NAME}}",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/pipeline/trigger",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "pipeline-trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize pipeline run\nconst runId = `run_${Date.now()}`;\nconst startTime = new Date();\n\nconst pipelineConfig = {\n  runId: runId,\n  startTime: startTime.toISOString(),\n  source: '{{SOURCE_TYPE}}',\n  destination: '{{DESTINATION_TYPE}}',\n  batchSize: {{BATCH_SIZE}} || 100,\n  stats: {\n    extracted: 0,\n    transformed: 0,\n    loaded: 0,\n    errors: 0\n  }\n};\n\nconsole.log('Pipeline started:', runId);\n\nreturn { json: pipelineConfig };"
+      },
+      "id": "init-pipeline",
+      "name": "Initialize Pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 380]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SOURCE_API_URL}}/data",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "={{ $json.batchSize }}"
+            },
+            {
+              "name": "offset",
+              "value": "={{ $json.offset || 0 }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "extract-data",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 380],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-extract",
+      "name": "Extract Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse extracted data\nconst input = $input.first().json;\nconst body = input.body || input.data || input;\nconst config = $('Initialize Pipeline').first().json;\n\nlet items = body.items || body.data || body.results || [];\nif (!Array.isArray(items)) {\n  items = [items];\n}\n\nconfig.stats.extracted = items.length;\n\nreturn {\n  json: {\n    config: config,\n    items: items,\n    hasMore: items.length >= config.batchSize\n  }\n};"
+      },
+      "id": "parse-extract",
+      "name": "Parse Extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 280]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "id": "split-records",
+      "name": "Split Records",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1240, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform each record\nconst record = $input.first().json;\n\n// Apply transformations\nlet transformed = {\n  // Copy original fields\n  ...record,\n  \n  // Add computed fields\n  _transformed_at: new Date().toISOString(),\n  _source: '{{SOURCE_TYPE}}',\n  \n  // Normalize field names (example)\n  // firstName: record.first_name || record.firstName,\n  // lastName: record.last_name || record.lastName,\n  \n  // Clean data (example)\n  // email: (record.email || '').toLowerCase().trim(),\n  \n  // Type conversions (example)\n  // amount: parseFloat(record.amount) || 0,\n  // isActive: Boolean(record.is_active || record.active)\n};\n\n// Validation\nlet isValid = true;\nlet validationErrors = [];\n\n// Example validations\n// if (!transformed.email || !transformed.email.includes('@')) {\n//   isValid = false;\n//   validationErrors.push('Invalid email');\n// }\n\ntransformed._valid = isValid;\ntransformed._errors = validationErrors;\n\nreturn { json: transformed };"
+      },
+      "id": "transform-record",
+      "name": "Transform Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-valid",
+              "leftValue": "={{ $json._valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1640, 280]
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ $('Initialize Pipeline').first().json.batchSize || 100 }}",
+        "options": {}
+      },
+      "id": "batch-records",
+      "name": "Batch Records",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1840, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DESTINATION_API_URL}}/data/bulk",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "load-data",
+      "name": "Load Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2040, 180],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Track invalid records\nconst record = $input.first().json;\n\nconsole.warn('Invalid record:', record._errors);\n\nreturn {\n  json: {\n    type: 'invalid_record',\n    id: record.id || 'unknown',\n    errors: record._errors,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "log-invalid",
+      "name": "Log Invalid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1840, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "load-success",
+              "leftValue": "={{ $json.statusCode || 200 }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "load-ok",
+              "leftValue": "={{ $json.statusCode || 200 }}",
+              "rightValue": 300,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-load",
+      "name": "Load Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2240, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate final statistics\nconst config = $('Initialize Pipeline').first().json;\nconst endTime = new Date();\nconst startTime = new Date(config.startTime);\nconst durationMs = endTime - startTime;\n\n// Count loaded items from all successful batches\nlet loadedCount = 0;\ntry {\n  const loadNodes = $('Load Data').all();\n  loadNodes.forEach(node => {\n    if (node.json.statusCode >= 200 && node.json.statusCode < 300) {\n      const body = node.json.body || {};\n      loadedCount += body.count || body.inserted || 0;\n    }\n  });\n} catch (e) {\n  // Use extracted count as fallback\n  loadedCount = config.stats.extracted;\n}\n\nconst summary = {\n  runId: config.runId,\n  status: 'completed',\n  startTime: config.startTime,\n  endTime: endTime.toISOString(),\n  durationMs: durationMs,\n  durationFormatted: `${Math.round(durationMs / 1000)}s`,\n  stats: {\n    extracted: config.stats.extracted,\n    transformed: config.stats.extracted, // Same as extracted in this flow\n    loaded: loadedCount,\n    errors: config.stats.errors\n  },\n  source: config.source,\n  destination: config.destination\n};\n\nconsole.log('Pipeline completed:', JSON.stringify(summary, null, 2));\n\nreturn { json: summary };"
+      },
+      "id": "finalize",
+      "name": "Finalize Pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle load failure\nconst input = $input.first().json;\n\nconst error = {\n  type: 'load_failure',\n  statusCode: input.statusCode,\n  message: input.error || input.message || 'Load failed',\n  timestamp: new Date().toISOString()\n};\n\nconsole.error('Load failed:', error);\n\nreturn { json: error };"
+      },
+      "id": "handle-load-error",
+      "name": "Handle Load Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle extract failure\nconst input = $input.first().json;\nconst config = $('Initialize Pipeline').first().json;\n\nconst error = {\n  runId: config.runId,\n  status: 'failed',\n  stage: 'extract',\n  error: input.error || input.message || 'Extract failed',\n  timestamp: new Date().toISOString()\n};\n\nconsole.error('Extract failed:', error);\n\nreturn { json: error };"
+      },
+      "id": "handle-extract-error",
+      "name": "Handle Extract Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 480]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "\\ud83d\\udcca **Pipeline {{WORKFLOW_NAME}}**\\n\\nStatus: {{ $json.status }}\\nDuration: {{ $json.durationFormatted }}\\n\\nStats:\\n- Extracted: {{ $json.stats?.extracted || 0 }}\\n- Loaded: {{ $json.stats?.loaded || 0 }}\\n- Errors: {{ $json.stats?.errors || 0 }}\\n\\n{{ $json.status === 'failed' ? '\\u274c Error: ' + $json.error : '\\u2705 Completed successfully' }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-complete",
+      "name": "Notify Complete",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2640, 280],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Extract Success?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Extract Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Success?": {
+      "main": [
+        [
+          {
+            "node": "Parse Extract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Extract Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Extract": {
+      "main": [
+        [
+          {
+            "node": "Split Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Records": {
+      "main": [
+        [
+          {
+            "node": "Transform Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Record": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Batch Records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Records": {
+      "main": [
+        [
+          {
+            "node": "Load Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Data": {
+      "main": [
+        [
+          {
+            "node": "Load Success?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Load Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Success?": {
+      "main": [
+        [
+          {
+            "node": "Finalize Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Load Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Invalid": {
+      "main": [
+        [
+          {
+            "node": "Finalize Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Notify Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Load Error": {
+      "main": [
+        [
+          {
+            "node": "Notify Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Extract Error": {
+      "main": [
+        [
+          {
+            "node": "Notify Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "etl",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "pipeline",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {}
+}
