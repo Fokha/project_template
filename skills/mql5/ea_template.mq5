@@ -1,444 +1,606 @@
 //+------------------------------------------------------------------+
-//|                                            {{EA_NAME}}.mq5        |
-//|                                         {{AUTHOR_NAME}}           |
-//|                                         {{AUTHOR_URL}}            |
+//|                                                  EA_Template.mq5 |
+//|                                    Expert Advisor Template v1.0  |
+//|                             Comprehensive trading EA framework   |
 //+------------------------------------------------------------------+
-#property copyright "{{AUTHOR_NAME}}"
-#property link      "{{AUTHOR_URL}}"
+#property copyright "Your Name"
+#property link      "https://www.example.com"
 #property version   "1.00"
-#property description "{{EA_DESCRIPTION}}"
 #property strict
 
-// ═══════════════════════════════════════════════════════════════
-// INCLUDES
-// ═══════════════════════════════════════════════════════════════
+//--- Include standard library
+#include <Trade\Trade.mqh>
+#include <Trade\PositionInfo.mqh>
+#include <Trade\SymbolInfo.mqh>
+#include <Trade\AccountInfo.mqh>
 
-#include <Trade/Trade.mqh>
-#include <Trade/PositionInfo.mqh>
-#include <Trade/SymbolInfo.mqh>
+//+------------------------------------------------------------------+
+//| Input Parameters                                                  |
+//+------------------------------------------------------------------+
 
-// Include your custom modules
-// #include "Include/Risk/Risk_Manager.mqh"
-// #include "Include/Indicators/Indicators.mqh"
-// #include "Include/Strategies/Strategy_Base.mqh"
-
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTS
-// ═══════════════════════════════════════════════════════════════
-
-#define EA_VERSION "1.0.0"
-#define EA_MAGIC   {{MAGIC_NUMBER}}
-
-// ═══════════════════════════════════════════════════════════════
-// INPUT PARAMETERS
-// ═══════════════════════════════════════════════════════════════
-
-// --- General Settings ---
+//--- General Settings
 input group "=== General Settings ==="
-input int         InpMagicNumber    = EA_MAGIC;    // Magic Number
-input string      InpComment        = "{{EA_NAME}}"; // Trade Comment
-input bool        InpEnableTrading  = true;        // Enable Trading
+input ulong    InpMagicNumber      = 123456;        // Magic Number
+input string   InpComment          = "EA_Template"; // Trade Comment
+input bool     InpDebugMode        = false;         // Debug Mode
 
-// --- Risk Management ---
+//--- Trading Settings
+input group "=== Trading Settings ==="
+input double   InpRiskPercent      = 1.0;           // Risk Per Trade (%)
+input double   InpMaxLotSize       = 10.0;          // Maximum Lot Size
+input double   InpMinLotSize       = 0.01;          // Minimum Lot Size
+input int      InpMaxPositions     = 1;             // Max Positions Per Symbol
+input int      InpSlippage         = 30;            // Max Slippage (points)
+
+//--- Stop Loss / Take Profit
+input group "=== Stop Loss / Take Profit ==="
+input bool     InpUseATRStops      = true;          // Use ATR-Based Stops
+input double   InpSLMultiplier     = 1.5;           // SL ATR Multiplier
+input double   InpTPMultiplier     = 2.0;           // TP ATR Multiplier
+input int      InpFixedSLPips      = 50;            // Fixed SL (pips) - if not ATR
+input int      InpFixedTPPips      = 100;           // Fixed TP (pips) - if not ATR
+
+//--- Strategy Parameters
+input group "=== Strategy Parameters ==="
+input int      InpFastMA           = 10;            // Fast MA Period
+input int      InpSlowMA           = 20;            // Slow MA Period
+input ENUM_MA_METHOD InpMAMethod   = MODE_EMA;      // MA Method
+input int      InpRSIPeriod        = 14;            // RSI Period
+input int      InpRSIOverbought    = 70;            // RSI Overbought Level
+input int      InpRSIOversold      = 30;            // RSI Oversold Level
+input int      InpATRPeriod        = 14;            // ATR Period
+
+//--- Risk Management
 input group "=== Risk Management ==="
-input double      InpRiskPercent    = 1.0;         // Risk per Trade (%)
-input double      InpMaxDailyLoss   = 5.0;         // Max Daily Loss (%)
-input int         InpMaxOpenTrades  = 3;           // Max Open Trades
-input double      InpMinLotSize     = 0.01;        // Minimum Lot Size
-input double      InpMaxLotSize     = 10.0;        // Maximum Lot Size
+input double   InpMaxDailyLoss     = 5.0;           // Max Daily Loss (%)
+input double   InpMaxDrawdown      = 10.0;          // Max Drawdown (%)
+input int      InpMaxTradesPerDay  = 5;             // Max Trades Per Day
+input int      InpCooldownMinutes  = 30;            // Cooldown Between Trades (min)
 
-// --- Stop Loss & Take Profit ---
-input group "=== SL/TP Settings ==="
-input double      InpSLMultiplier   = 2.0;         // SL ATR Multiplier
-input double      InpTPMultiplier   = 3.0;         // TP ATR Multiplier
-input int         InpATRPeriod      = 14;          // ATR Period
-input bool        InpUseTrailingStop = true;       // Use Trailing Stop
-input double      InpTrailMultiplier = 1.5;        // Trailing ATR Multiplier
-
-// --- Strategy Settings ---
-input group "=== Strategy Settings ==="
-input int         InpFastMA         = 9;           // Fast MA Period
-input int         InpSlowMA         = 21;          // Slow MA Period
-input int         InpRSIPeriod      = 14;          // RSI Period
-input double      InpRSIOverbought  = 70;          // RSI Overbought
-input double      InpRSIOversold    = 30;          // RSI Oversold
-
-// --- Session Filter ---
+//--- Session Filter
 input group "=== Session Filter ==="
-input bool        InpUseSessionFilter = true;      // Enable Session Filter
-input int         InpSessionStart   = 8;           // Session Start Hour (Server)
-input int         InpSessionEnd     = 20;          // Session End Hour (Server)
+input bool     InpUseSessionFilter = true;          // Use Session Filter
+input int      InpSessionStartHour = 8;             // Session Start Hour (Server Time)
+input int      InpSessionEndHour   = 20;            // Session End Hour (Server Time)
+input bool     InpTradeFriday      = true;          // Trade on Friday
+input bool     InpCloseOnFriday    = false;         // Close Positions Friday EOD
 
-// ═══════════════════════════════════════════════════════════════
-// GLOBAL VARIABLES
-// ═══════════════════════════════════════════════════════════════
+//--- Notifications
+input group "=== Notifications ==="
+input bool     InpPushNotify       = false;         // Push Notifications
+input bool     InpEmailNotify      = false;         // Email Notifications
+input bool     InpAlertNotify      = true;          // Alert Notifications
 
-// Trading objects
-CTrade            g_Trade;
-CPositionInfo     g_Position;
-CSymbolInfo       g_Symbol;
+//+------------------------------------------------------------------+
+//| Global Variables                                                  |
+//+------------------------------------------------------------------+
 
-// Indicator handles
-int               g_HandleATR;
-int               g_HandleFastMA;
-int               g_HandleSlowMA;
-int               g_HandleRSI;
+//--- Trading objects
+CTrade         g_Trade;
+CPositionInfo  g_Position;
+CSymbolInfo    g_SymbolInfo;
+CAccountInfo   g_AccountInfo;
 
-// Indicator buffers
-double            g_BufferATR[];
-double            g_BufferFastMA[];
-double            g_BufferSlowMA[];
-double            g_BufferRSI[];
+//--- Indicator handles
+int            g_HandleFastMA;
+int            g_HandleSlowMA;
+int            g_HandleRSI;
+int            g_HandleATR;
 
-// State tracking
-datetime          g_LastBarTime = 0;
-double            g_DailyStartBalance = 0;
-int               g_TodayTrades = 0;
+//--- Indicator buffers
+double         g_FastMA[];
+double         g_SlowMA[];
+double         g_RSI[];
+double         g_ATR[];
 
-// ═══════════════════════════════════════════════════════════════
-// INITIALIZATION
-// ═══════════════════════════════════════════════════════════════
+//--- State tracking
+datetime       g_LastTradeTime     = 0;
+int            g_TradesToday       = 0;
+datetime       g_LastDayChecked    = 0;
+double         g_DayStartBalance   = 0;
+double         g_HighWaterMark     = 0;
 
+//--- Price info
+double         g_Point;
+int            g_Digits;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                    |
+//+------------------------------------------------------------------+
 int OnInit()
 {
-    // Log version
-    Print("═══════════════════════════════════════════════════════");
-    Print("{{EA_NAME}} v", EA_VERSION, " initializing...");
-    Print("═══════════════════════════════════════════════════════");
-
-    // Initialize symbol info
-    if (!g_Symbol.Name(_Symbol))
-    {
-        Print("ERROR: Failed to initialize symbol info");
-        return INIT_FAILED;
-    }
-
-    // Initialize trade object
-    g_Trade.SetExpertMagicNumber(InpMagicNumber);
-    g_Trade.SetDeviationInPoints(10);
-    g_Trade.SetTypeFilling(ORDER_FILLING_IOC);
-
-    // Create indicator handles
-    g_HandleATR = iATR(_Symbol, PERIOD_CURRENT, InpATRPeriod);
-    g_HandleFastMA = iMA(_Symbol, PERIOD_CURRENT, InpFastMA, 0, MODE_EMA, PRICE_CLOSE);
-    g_HandleSlowMA = iMA(_Symbol, PERIOD_CURRENT, InpSlowMA, 0, MODE_EMA, PRICE_CLOSE);
-    g_HandleRSI = iRSI(_Symbol, PERIOD_CURRENT, InpRSIPeriod, PRICE_CLOSE);
-
-    // Validate handles
-    if (g_HandleATR == INVALID_HANDLE ||
-        g_HandleFastMA == INVALID_HANDLE ||
-        g_HandleSlowMA == INVALID_HANDLE ||
-        g_HandleRSI == INVALID_HANDLE)
-    {
-        Print("ERROR: Failed to create indicator handles");
-        return INIT_FAILED;
-    }
-
-    // Set array direction
-    ArraySetAsSeries(g_BufferATR, true);
-    ArraySetAsSeries(g_BufferFastMA, true);
-    ArraySetAsSeries(g_BufferSlowMA, true);
-    ArraySetAsSeries(g_BufferRSI, true);
-
-    // Initialize daily tracking
-    g_DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
-
-    Print("{{EA_NAME}} initialized successfully!");
-    return INIT_SUCCEEDED;
+   //--- Initialize symbol info
+   if(!g_SymbolInfo.Name(_Symbol))
+   {
+      Print("Failed to initialize symbol info");
+      return INIT_FAILED;
+   }
+   g_SymbolInfo.Refresh();
+   
+   //--- Store point and digits
+   g_Point = g_SymbolInfo.Point();
+   g_Digits = (int)g_SymbolInfo.Digits();
+   
+   //--- Initialize trade object
+   g_Trade.SetExpertMagicNumber(InpMagicNumber);
+   g_Trade.SetDeviationInPoints(InpSlippage);
+   g_Trade.SetTypeFilling(ORDER_FILLING_IOC);
+   g_Trade.SetAsyncMode(false);
+   
+   //--- Create indicator handles
+   g_HandleFastMA = iMA(_Symbol, PERIOD_CURRENT, InpFastMA, 0, InpMAMethod, PRICE_CLOSE);
+   g_HandleSlowMA = iMA(_Symbol, PERIOD_CURRENT, InpSlowMA, 0, InpMAMethod, PRICE_CLOSE);
+   g_HandleRSI    = iRSI(_Symbol, PERIOD_CURRENT, InpRSIPeriod, PRICE_CLOSE);
+   g_HandleATR    = iATR(_Symbol, PERIOD_CURRENT, InpATRPeriod);
+   
+   //--- Validate handles
+   if(g_HandleFastMA == INVALID_HANDLE || g_HandleSlowMA == INVALID_HANDLE ||
+      g_HandleRSI == INVALID_HANDLE || g_HandleATR == INVALID_HANDLE)
+   {
+      Print("Failed to create indicator handles");
+      return INIT_FAILED;
+   }
+   
+   //--- Set arrays as series
+   ArraySetAsSeries(g_FastMA, true);
+   ArraySetAsSeries(g_SlowMA, true);
+   ArraySetAsSeries(g_RSI, true);
+   ArraySetAsSeries(g_ATR, true);
+   
+   //--- Initialize state
+   g_DayStartBalance = g_AccountInfo.Balance();
+   g_HighWaterMark = g_AccountInfo.Equity();
+   g_LastDayChecked = iTime(_Symbol, PERIOD_D1, 0);
+   
+   Print("EA initialized successfully");
+   Print("Symbol: ", _Symbol, " | Point: ", g_Point, " | Digits: ", g_Digits);
+   
+   return INIT_SUCCEEDED;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DEINITIALIZATION
-// ═══════════════════════════════════════════════════════════════
-
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                  |
+//+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-    // Release indicator handles
-    if (g_HandleATR != INVALID_HANDLE) IndicatorRelease(g_HandleATR);
-    if (g_HandleFastMA != INVALID_HANDLE) IndicatorRelease(g_HandleFastMA);
-    if (g_HandleSlowMA != INVALID_HANDLE) IndicatorRelease(g_HandleSlowMA);
-    if (g_HandleRSI != INVALID_HANDLE) IndicatorRelease(g_HandleRSI);
-
-    Print("{{EA_NAME}} deinitialized. Reason: ", GetDeinitReasonText(reason));
+   //--- Release indicator handles
+   if(g_HandleFastMA != INVALID_HANDLE) IndicatorRelease(g_HandleFastMA);
+   if(g_HandleSlowMA != INVALID_HANDLE) IndicatorRelease(g_HandleSlowMA);
+   if(g_HandleRSI != INVALID_HANDLE)    IndicatorRelease(g_HandleRSI);
+   if(g_HandleATR != INVALID_HANDLE)    IndicatorRelease(g_HandleATR);
+   
+   Print("EA deinitialized. Reason: ", reason);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN TICK HANDLER
-// ═══════════════════════════════════════════════════════════════
-
+//+------------------------------------------------------------------+
+//| Expert tick function                                              |
+//+------------------------------------------------------------------+
 void OnTick()
 {
-    // Check if trading is enabled
-    if (!InpEnableTrading) return;
-
-    // Check for new bar (optional: trade only on new bars)
-    if (!IsNewBar()) return;
-
-    // Update indicator values
-    if (!UpdateIndicators()) return;
-
-    // Check session filter
-    if (InpUseSessionFilter && !IsWithinSession()) return;
-
-    // Check daily loss limit
-    if (IsDailyLossLimitReached()) return;
-
-    // Manage existing positions
-    ManagePositions();
-
-    // Check for new signals
-    int signal = GetSignal();
-
-    // Execute trade if signal and conditions met
-    if (signal != 0 && CanOpenNewTrade())
-    {
-        ExecuteTrade(signal);
-    }
+   //--- Refresh symbol info
+   g_SymbolInfo.Refresh();
+   g_SymbolInfo.RefreshRates();
+   
+   //--- Check for new day
+   CheckNewDay();
+   
+   //--- Risk checks
+   if(!PassesRiskChecks())
+      return;
+   
+   //--- Session filter
+   if(!IsWithinTradingSession())
+      return;
+   
+   //--- Cooldown check
+   if(!PassesCooldownCheck())
+      return;
+   
+   //--- Update indicators
+   if(!UpdateIndicators())
+      return;
+   
+   //--- Check for new bar (optional - for bar-based strategies)
+   static datetime lastBarTime = 0;
+   datetime currentBarTime = iTime(_Symbol, PERIOD_CURRENT, 0);
+   if(currentBarTime == lastBarTime)
+      return;  // Only trade on new bar
+   lastBarTime = currentBarTime;
+   
+   //--- Generate signal
+   int signal = GenerateSignal();
+   
+   //--- Execute signal
+   if(signal != 0)
+      ExecuteSignal(signal);
+   
+   //--- Manage open positions
+   ManagePositions();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SIGNAL GENERATION
-// ═══════════════════════════════════════════════════════════════
-
-int GetSignal()
+//+------------------------------------------------------------------+
+//| Check for new trading day                                         |
+//+------------------------------------------------------------------+
+void CheckNewDay()
 {
-    // Simple EMA crossover + RSI confirmation
-    // Returns: 1 = BUY, -1 = SELL, 0 = NO SIGNAL
-
-    double fastMA_curr = g_BufferFastMA[0];
-    double fastMA_prev = g_BufferFastMA[1];
-    double slowMA_curr = g_BufferSlowMA[0];
-    double slowMA_prev = g_BufferSlowMA[1];
-    double rsi = g_BufferRSI[0];
-
-    // BUY Signal: Fast MA crosses above Slow MA + RSI not overbought
-    if (fastMA_prev <= slowMA_prev && fastMA_curr > slowMA_curr)
-    {
-        if (rsi < InpRSIOverbought)
-        {
-            return 1;  // BUY
-        }
-    }
-
-    // SELL Signal: Fast MA crosses below Slow MA + RSI not oversold
-    if (fastMA_prev >= slowMA_prev && fastMA_curr < slowMA_curr)
-    {
-        if (rsi > InpRSIOversold)
-        {
-            return -1;  // SELL
-        }
-    }
-
-    return 0;  // NO SIGNAL
+   datetime currentDay = iTime(_Symbol, PERIOD_D1, 0);
+   
+   if(currentDay != g_LastDayChecked)
+   {
+      g_LastDayChecked = currentDay;
+      g_TradesToday = 0;
+      g_DayStartBalance = g_AccountInfo.Balance();
+      
+      if(InpDebugMode)
+         Print("New day detected. Daily counters reset.");
+   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TRADE EXECUTION
-// ═══════════════════════════════════════════════════════════════
-
-bool ExecuteTrade(int signal)
+//+------------------------------------------------------------------+
+//| Risk management checks                                            |
+//+------------------------------------------------------------------+
+bool PassesRiskChecks()
 {
-    g_Symbol.RefreshRates();
-
-    double atr = g_BufferATR[0];
-    double slPoints = atr * InpSLMultiplier / _Point;
-    double tpPoints = atr * InpTPMultiplier / _Point;
-
-    // Calculate lot size
-    double lots = CalculateLotSize(InpRiskPercent, slPoints);
-
-    // Get prices
-    double price, sl, tp;
-
-    if (signal > 0)  // BUY
-    {
-        price = g_Symbol.Ask();
-        sl = price - (slPoints * _Point);
-        tp = price + (tpPoints * _Point);
-
-        if (g_Trade.Buy(lots, _Symbol, price, sl, tp, InpComment))
-        {
-            Print("BUY order opened: ", lots, " lots at ", price);
-            g_TodayTrades++;
-            return true;
-        }
-    }
-    else if (signal < 0)  // SELL
-    {
-        price = g_Symbol.Bid();
-        sl = price + (slPoints * _Point);
-        tp = price - (tpPoints * _Point);
-
-        if (g_Trade.Sell(lots, _Symbol, price, sl, tp, InpComment))
-        {
-            Print("SELL order opened: ", lots, " lots at ", price);
-            g_TodayTrades++;
-            return true;
-        }
-    }
-
-    Print("ERROR: Trade execution failed. Error: ", GetLastError());
-    return false;
+   //--- Check max trades per day
+   if(g_TradesToday >= InpMaxTradesPerDay)
+   {
+      if(InpDebugMode)
+         Print("Max trades per day reached: ", g_TradesToday);
+      return false;
+   }
+   
+   //--- Check daily loss limit
+   double currentBalance = g_AccountInfo.Balance();
+   double dailyLossPercent = (g_DayStartBalance - currentBalance) / g_DayStartBalance * 100;
+   
+   if(dailyLossPercent >= InpMaxDailyLoss)
+   {
+      if(InpDebugMode)
+         Print("Daily loss limit reached: ", DoubleToString(dailyLossPercent, 2), "%");
+      return false;
+   }
+   
+   //--- Check drawdown limit
+   double equity = g_AccountInfo.Equity();
+   if(equity > g_HighWaterMark)
+      g_HighWaterMark = equity;
+   
+   double drawdownPercent = (g_HighWaterMark - equity) / g_HighWaterMark * 100;
+   
+   if(drawdownPercent >= InpMaxDrawdown)
+   {
+      if(InpDebugMode)
+         Print("Max drawdown reached: ", DoubleToString(drawdownPercent, 2), "%");
+      return false;
+   }
+   
+   //--- Check max positions
+   if(CountPositions() >= InpMaxPositions)
+   {
+      if(InpDebugMode)
+         Print("Max positions reached: ", CountPositions());
+      return false;
+   }
+   
+   return true;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// POSITION MANAGEMENT
-// ═══════════════════════════════════════════════════════════════
-
-void ManagePositions()
+//+------------------------------------------------------------------+
+//| Session filter check                                              |
+//+------------------------------------------------------------------+
+bool IsWithinTradingSession()
 {
-    if (!InpUseTrailingStop) return;
-
-    for (int i = PositionsTotal() - 1; i >= 0; i--)
-    {
-        if (!g_Position.SelectByIndex(i)) continue;
-        if (g_Position.Magic() != InpMagicNumber) continue;
-        if (g_Position.Symbol() != _Symbol) continue;
-
-        TrailPosition();
-    }
+   if(!InpUseSessionFilter)
+      return true;
+   
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   
+   //--- Check Friday trading
+   if(dt.day_of_week == 5 && !InpTradeFriday)
+      return false;
+   
+   //--- Check trading hours
+   if(dt.hour < InpSessionStartHour || dt.hour >= InpSessionEndHour)
+      return false;
+   
+   return true;
 }
 
-void TrailPosition()
+//+------------------------------------------------------------------+
+//| Cooldown period check                                             |
+//+------------------------------------------------------------------+
+bool PassesCooldownCheck()
 {
-    double atr = g_BufferATR[0];
-    double trailDistance = atr * InpTrailMultiplier;
-
-    double currentSL = g_Position.StopLoss();
-    double openPrice = g_Position.PriceOpen();
-    double currentPrice = g_Position.PriceCurrent();
-
-    double newSL = 0;
-
-    if (g_Position.PositionType() == POSITION_TYPE_BUY)
-    {
-        newSL = currentPrice - trailDistance;
-        if (newSL > currentSL && newSL > openPrice)
-        {
-            g_Trade.PositionModify(g_Position.Ticket(), newSL, g_Position.TakeProfit());
-        }
-    }
-    else if (g_Position.PositionType() == POSITION_TYPE_SELL)
-    {
-        newSL = currentPrice + trailDistance;
-        if ((newSL < currentSL || currentSL == 0) && newSL < openPrice)
-        {
-            g_Trade.PositionModify(g_Position.Ticket(), newSL, g_Position.TakeProfit());
-        }
-    }
+   if(InpCooldownMinutes <= 0)
+      return true;
+   
+   if(g_LastTradeTime == 0)
+      return true;
+   
+   datetime cooldownEnd = g_LastTradeTime + InpCooldownMinutes * 60;
+   
+   if(TimeCurrent() < cooldownEnd)
+   {
+      if(InpDebugMode)
+         Print("In cooldown period. Next trade allowed at: ", TimeToString(cooldownEnd));
+      return false;
+   }
+   
+   return true;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RISK MANAGEMENT
-// ═══════════════════════════════════════════════════════════════
-
-double CalculateLotSize(double riskPercent, double slPoints)
-{
-    double accountRisk = AccountInfoDouble(ACCOUNT_BALANCE) * riskPercent / 100.0;
-    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-    double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-    double pointValue = tickValue / tickSize * _Point;
-
-    if (pointValue <= 0) return InpMinLotSize;
-
-    double lots = accountRisk / (slPoints * pointValue);
-
-    // Normalize to symbol constraints
-    double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-    double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
-    double stepLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-
-    lots = MathFloor(lots / stepLot) * stepLot;
-    lots = MathMax(minLot, MathMin(maxLot, lots));
-    lots = MathMax(InpMinLotSize, MathMin(InpMaxLotSize, lots));
-
-    return lots;
-}
-
-bool CanOpenNewTrade()
-{
-    int openTrades = CountOpenTrades();
-    return openTrades < InpMaxOpenTrades;
-}
-
-int CountOpenTrades()
-{
-    int count = 0;
-    for (int i = PositionsTotal() - 1; i >= 0; i--)
-    {
-        if (g_Position.SelectByIndex(i))
-        {
-            if (g_Position.Magic() == InpMagicNumber && g_Position.Symbol() == _Symbol)
-            {
-                count++;
-            }
-        }
-    }
-    return count;
-}
-
-bool IsDailyLossLimitReached()
-{
-    double currentBalance = AccountInfoDouble(ACCOUNT_BALANCE);
-    double dailyLoss = g_DailyStartBalance - currentBalance;
-    double maxLoss = g_DailyStartBalance * InpMaxDailyLoss / 100.0;
-
-    if (dailyLoss >= maxLoss)
-    {
-        Print("Daily loss limit reached: ", dailyLoss, " / ", maxLoss);
-        return true;
-    }
-    return false;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
-
-bool IsNewBar()
-{
-    datetime currentBarTime = iTime(_Symbol, PERIOD_CURRENT, 0);
-    if (currentBarTime != g_LastBarTime)
-    {
-        g_LastBarTime = currentBarTime;
-        return true;
-    }
-    return false;
-}
-
+//+------------------------------------------------------------------+
+//| Update indicator buffers                                          |
+//+------------------------------------------------------------------+
 bool UpdateIndicators()
 {
-    if (CopyBuffer(g_HandleATR, 0, 0, 3, g_BufferATR) < 3) return false;
-    if (CopyBuffer(g_HandleFastMA, 0, 0, 3, g_BufferFastMA) < 3) return false;
-    if (CopyBuffer(g_HandleSlowMA, 0, 0, 3, g_BufferSlowMA) < 3) return false;
-    if (CopyBuffer(g_HandleRSI, 0, 0, 3, g_BufferRSI) < 3) return false;
-    return true;
+   if(CopyBuffer(g_HandleFastMA, 0, 0, 3, g_FastMA) < 3) return false;
+   if(CopyBuffer(g_HandleSlowMA, 0, 0, 3, g_SlowMA) < 3) return false;
+   if(CopyBuffer(g_HandleRSI, 0, 0, 3, g_RSI) < 3)       return false;
+   if(CopyBuffer(g_HandleATR, 0, 0, 3, g_ATR) < 3)       return false;
+   
+   return true;
 }
 
-bool IsWithinSession()
+//+------------------------------------------------------------------+
+//| Generate trading signal                                           |
+//|  Returns: 1 = Buy, -1 = Sell, 0 = No signal                      |
+//+------------------------------------------------------------------+
+int GenerateSignal()
 {
-    MqlDateTime dt;
-    TimeToStruct(TimeCurrent(), dt);
-    int hour = dt.hour;
-
-    return (hour >= InpSessionStart && hour < InpSessionEnd);
+   //--- MA Crossover + RSI Confirmation Strategy
+   
+   //--- Check for bullish signal
+   bool maCrossUp = g_FastMA[1] <= g_SlowMA[1] && g_FastMA[0] > g_SlowMA[0];
+   bool rsiOversold = g_RSI[1] < InpRSIOversold;
+   
+   if(maCrossUp && rsiOversold)
+   {
+      if(InpDebugMode)
+         Print("BUY signal generated. FastMA: ", g_FastMA[0], " SlowMA: ", g_SlowMA[0], " RSI: ", g_RSI[1]);
+      return 1;
+   }
+   
+   //--- Check for bearish signal
+   bool maCrossDown = g_FastMA[1] >= g_SlowMA[1] && g_FastMA[0] < g_SlowMA[0];
+   bool rsiOverbought = g_RSI[1] > InpRSIOverbought;
+   
+   if(maCrossDown && rsiOverbought)
+   {
+      if(InpDebugMode)
+         Print("SELL signal generated. FastMA: ", g_FastMA[0], " SlowMA: ", g_SlowMA[0], " RSI: ", g_RSI[1]);
+      return -1;
+   }
+   
+   return 0;
 }
 
-string GetDeinitReasonText(int reason)
+//+------------------------------------------------------------------+
+//| Execute trading signal                                            |
+//+------------------------------------------------------------------+
+void ExecuteSignal(int signal)
 {
-    switch (reason)
-    {
-        case REASON_PROGRAM:     return "Program ended";
-        case REASON_REMOVE:      return "Removed from chart";
-        case REASON_RECOMPILE:   return "Recompiled";
-        case REASON_CHARTCHANGE: return "Chart changed";
-        case REASON_CHARTCLOSE:  return "Chart closed";
-        case REASON_PARAMETERS:  return "Parameters changed";
-        case REASON_ACCOUNT:     return "Account changed";
-        case REASON_TEMPLATE:    return "Template applied";
-        case REASON_INITFAILED:  return "Init failed";
-        case REASON_CLOSE:       return "Terminal closed";
-        default:                 return "Unknown reason";
-    }
+   if(signal == 0)
+      return;
+   
+   //--- Calculate lot size
+   double lotSize = CalculateLotSize();
+   if(lotSize < InpMinLotSize)
+   {
+      Print("Calculated lot size too small: ", lotSize);
+      return;
+   }
+   
+   //--- Calculate stop levels
+   double sl, tp;
+   CalculateStopLevels(signal, sl, tp);
+   
+   //--- Get current price
+   double price = (signal > 0) ? g_SymbolInfo.Ask() : g_SymbolInfo.Bid();
+   
+   //--- Execute trade
+   bool success = false;
+   
+   if(signal > 0)
+   {
+      success = g_Trade.Buy(lotSize, _Symbol, price, sl, tp, InpComment);
+   }
+   else
+   {
+      success = g_Trade.Sell(lotSize, _Symbol, price, sl, tp, InpComment);
+   }
+   
+   //--- Handle result
+   if(success)
+   {
+      g_LastTradeTime = TimeCurrent();
+      g_TradesToday++;
+      
+      string direction = (signal > 0) ? "BUY" : "SELL";
+      string message = StringFormat("%s executed. Lots: %.2f, Price: %.5f, SL: %.5f, TP: %.5f",
+                                    direction, lotSize, price, sl, tp);
+      
+      SendNotification(message);
+      
+      if(InpDebugMode)
+         Print(message);
+   }
+   else
+   {
+      Print("Trade failed. Error: ", g_Trade.ResultRetcode(), " - ", g_Trade.ResultRetcodeDescription());
+   }
 }
+
+//+------------------------------------------------------------------+
+//| Calculate position size based on risk                             |
+//+------------------------------------------------------------------+
+double CalculateLotSize()
+{
+   double balance = g_AccountInfo.Balance();
+   double riskAmount = balance * InpRiskPercent / 100.0;
+   
+   //--- Get stop loss distance in points
+   double slDistance;
+   if(InpUseATRStops)
+   {
+      slDistance = g_ATR[0] * InpSLMultiplier / g_Point;
+   }
+   else
+   {
+      slDistance = InpFixedSLPips * 10;  // Convert pips to points
+   }
+   
+   //--- Calculate lot size
+   double tickValue = g_SymbolInfo.TickValue();
+   double tickSize = g_SymbolInfo.TickSize();
+   
+   if(tickValue == 0 || tickSize == 0 || slDistance == 0)
+      return InpMinLotSize;
+   
+   double lotSize = riskAmount / (slDistance * tickValue / tickSize);
+   
+   //--- Normalize lot size
+   double lotStep = g_SymbolInfo.LotsStep();
+   lotSize = MathFloor(lotSize / lotStep) * lotStep;
+   
+   //--- Apply limits
+   lotSize = MathMax(InpMinLotSize, lotSize);
+   lotSize = MathMin(InpMaxLotSize, lotSize);
+   lotSize = MathMin(g_SymbolInfo.LotsMax(), lotSize);
+   
+   return NormalizeDouble(lotSize, 2);
+}
+
+//+------------------------------------------------------------------+
+//| Calculate stop loss and take profit levels                        |
+//+------------------------------------------------------------------+
+void CalculateStopLevels(int signal, double &sl, double &tp)
+{
+   double price = (signal > 0) ? g_SymbolInfo.Ask() : g_SymbolInfo.Bid();
+   double slDistance, tpDistance;
+   
+   if(InpUseATRStops)
+   {
+      slDistance = g_ATR[0] * InpSLMultiplier;
+      tpDistance = g_ATR[0] * InpTPMultiplier;
+   }
+   else
+   {
+      slDistance = InpFixedSLPips * g_Point * 10;
+      tpDistance = InpFixedTPPips * g_Point * 10;
+   }
+   
+   if(signal > 0)  // Buy
+   {
+      sl = NormalizeDouble(price - slDistance, g_Digits);
+      tp = NormalizeDouble(price + tpDistance, g_Digits);
+   }
+   else  // Sell
+   {
+      sl = NormalizeDouble(price + slDistance, g_Digits);
+      tp = NormalizeDouble(price - tpDistance, g_Digits);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Count open positions for this EA                                  |
+//+------------------------------------------------------------------+
+int CountPositions()
+{
+   int count = 0;
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      if(g_Position.SelectByIndex(i))
+      {
+         if(g_Position.Symbol() == _Symbol && g_Position.Magic() == InpMagicNumber)
+            count++;
+      }
+   }
+   
+   return count;
+}
+
+//+------------------------------------------------------------------+
+//| Manage open positions (trailing stop, breakeven, etc.)            |
+//+------------------------------------------------------------------+
+void ManagePositions()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      if(!g_Position.SelectByIndex(i))
+         continue;
+      
+      if(g_Position.Symbol() != _Symbol || g_Position.Magic() != InpMagicNumber)
+         continue;
+      
+      //--- Add position management logic here
+      //--- Examples: trailing stop, breakeven, partial close
+      
+      //--- Friday close logic
+      if(InpCloseOnFriday)
+      {
+         MqlDateTime dt;
+         TimeToStruct(TimeCurrent(), dt);
+         
+         if(dt.day_of_week == 5 && dt.hour >= 20)
+         {
+            g_Trade.PositionClose(g_Position.Ticket());
+            SendNotification("Position closed for Friday EOD");
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Send notification through configured channels                     |
+//+------------------------------------------------------------------+
+void SendNotification(string message)
+{
+   string fullMessage = StringFormat("[%s] %s: %s", _Symbol, InpComment, message);
+   
+   if(InpAlertNotify)
+      Alert(fullMessage);
+   
+   if(InpPushNotify)
+      SendNotification(fullMessage);
+   
+   if(InpEmailNotify)
+      SendMail(InpComment + " Alert", fullMessage);
+}
+
+//+------------------------------------------------------------------+
+//| Tester event handler                                              |
+//+------------------------------------------------------------------+
+double OnTester()
+{
+   //--- Custom optimization criterion
+   //--- Return value used for optimization in Strategy Tester
+   
+   double profit = TesterStatistics(STAT_PROFIT);
+   double drawdown = TesterStatistics(STAT_EQUITY_DDREL_PERCENT);
+   double trades = TesterStatistics(STAT_TRADES);
+   double winRate = TesterStatistics(STAT_TRADES) > 0 ? 
+                    TesterStatistics(STAT_PROFIT_TRADES) / TesterStatistics(STAT_TRADES) * 100 : 0;
+   
+   //--- Avoid division by zero and penalize low trade count
+   if(trades < 10 || drawdown <= 0)
+      return 0;
+   
+   //--- Calculate custom criterion (profit factor adjusted by drawdown)
+   double criterion = profit / drawdown * MathSqrt(trades);
+   
+   return criterion;
+}
+
+//+------------------------------------------------------------------+
+//| Trade event handler                                               |
+//+------------------------------------------------------------------+
+void OnTrade()
+{
+   //--- Called when trade events occur
+   //--- Can be used for additional trade tracking
+}
+
 //+------------------------------------------------------------------+
