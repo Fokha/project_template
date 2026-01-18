@@ -33,14 +33,14 @@ skills/
 | **Agentic AI** | 21 patterns | 21 templates | ⭐⭐⭐⭐⭐ | Yes (PatternExecutor) |
 | **Data Layer** | 7 modules | 47 templates | ⭐⭐⭐⭐ | Yes (unified data) |
 | **DevOps** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (automation) |
-| **Flutter** | 8 patterns | 8 templates | ⭐⭐⭐ | Yes (fokha_apps) |
+| **Flutter** | 21 patterns | 21 templates | ⭐⭐⭐⭐ | Yes (fokha_apps) |
 | **Integration** | 8 patterns | 8 templates | ⭐⭐⭐⭐ | Yes (bridge) |
 | **Machine Learning** | 12 patterns | 12 templates | ⭐⭐⭐⭐ | Yes (ML models) |
 | **MQL5** | 8 patterns | 10 templates | ⭐⭐⭐⭐ | Yes (Ultimate EA v19) |
 | **N8N** | 10 patterns | 10 templates | ⭐⭐ | Yes (45 workflows) |
 | **Python API** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (api_server.py) |
 
-**Total: 94 skill patterns (136 files)**
+**Total: 107 skill patterns (149 files)**
 
 ### Trading System Usage Summary
 
@@ -64,6 +64,7 @@ skills/
 
 | # | Pattern | Template | Description |
 |---|---------|----------|-------------|
+| **Core Patterns** ||||
 | 1 | **Provider Pattern** | `provider_template.dart` | State management with ChangeNotifier |
 | 2 | **Service Pattern** | `service_template.dart` | Business logic encapsulation |
 | 3 | **Model Pattern** | `model_template.dart` | Data model with JSON serialization |
@@ -72,6 +73,44 @@ skills/
 | 6 | **Widget Composition** | `widget_composition_template.dart` | Reusable widget patterns |
 | 7 | **Theme Constants** | `theme_constants_template.dart` | Hardcoded fonts, colors, spacing |
 | 8 | **Plugin Architecture** | `plugin_template.dart` | Extensible plugin system |
+| **Service Templates (NEW)** ||||
+| 9 | **Live Data Service** | `live_data_service_template.dart` | Multi-source API aggregation with fallbacks |
+| 10 | **Firebase Service** | `firebase_service_template.dart` | Complete Firestore CRUD operations |
+| 11 | **OAuth Service** | `oauth_template.dart` | Multi-provider OAuth (Google/Apple/Microsoft) |
+| 12 | **Auth Service** | `auth_service_template.dart` | HTTP-based authentication with tokens |
+| 13 | **Notification Service** | `notification_service_template.dart` | FCM + local notifications |
+| 14 | **Backup Service** | `backup_service_template.dart` | Cloud backup with Firebase Storage |
+| 15 | **Storage Service** | `storage_service_template.dart` | Dual-layer (SharedPrefs + Hive) |
+| 16 | **Logger Service** | `logger_service_template.dart` | Production logging with levels |
+| 17 | **Connectivity Service** | `connectivity_service_template.dart` | Network monitoring and retry |
+| 18 | **Analytics Service** | `analytics_service_template.dart` | Event tracking with Firebase Analytics |
+| 19 | **PDF Service** | `pdf_service_template.dart` | PDF generation and printing |
+| 20 | **Theme Service** | `theme_service_template.dart` | Dynamic light/dark mode management |
+| **UI Templates (NEW)** ||||
+| 21 | **Base List Screen** | `base_list_screen_template.dart` | CRUD list with search, filter, pagination |
+
+### Service Categories
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       FLUTTER SERVICE TEMPLATES                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  DATA SERVICES                    INFRASTRUCTURE                            │
+│  ├── live_data_service            ├── connectivity_service                  │
+│  ├── firebase_service             ├── logger_service                        │
+│  └── storage_service              └── analytics_service                     │
+│                                                                              │
+│  AUTH SERVICES                    UI SERVICES                               │
+│  ├── firebase_auth_service        ├── theme_service                         │
+│  └── auth_service (HTTP)          ├── pdf_service                           │
+│                                   └── notification_service                  │
+│  CLOUD SERVICES                                                              │
+│  ├── backup_service               UI PATTERNS                               │
+│  └── notification_service         └── base_list_screen                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Usage Example
 ```dart
@@ -80,6 +119,11 @@ cp skills/flutter/provider_template.dart lib/providers/my_provider.dart
 
 // Customize
 sed -i 's/{{PROVIDER_NAME}}/MyFeature/g' lib/providers/my_provider.dart
+
+// For service templates - replace placeholders:
+// {{MODEL_NAME}} - Your data model name
+// {{COLLECTION_NAME}} - Firestore collection name
+// {{API_URL}} - Base API URL
 ```
 
 ---
