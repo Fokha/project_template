@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "description": "Template for NEUTRAL intensity VALID LIVE data",
+    "source": "live",
+    "validity": "valid",
+    "intensity": "neutral"
+  },
+  "id": "{uuid}",
+  "timestamp": "{now}",
+  "data": {
+    "value": {"_type": "float", "_min": 400, "_max": 600},
+    "confidence": {"_type": "float", "_min": 0.5, "_max": 0.85, "_precision": 3},
+    "status": "active",
+    "priority": "normal",
+    "flags": {
+      "urgent": false,
+      "verified": true,
+      "processed": false
+    }
+  }
+}

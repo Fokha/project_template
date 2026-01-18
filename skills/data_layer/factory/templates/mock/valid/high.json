@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "description": "Template for HIGH intensity VALID MOCK data (testing)",
+    "source": "mock",
+    "validity": "valid",
+    "intensity": "high"
+  },
+  "id": "mock-{seq}",
+  "timestamp": "{now}",
+  "data": {
+    "value": 950,
+    "confidence": 0.95,
+    "status": "test",
+    "priority": "critical",
+    "flags": {
+      "urgent": true,
+      "verified": true,
+      "processed": false
+    }
+  },
+  "_test": {
+    "expected_result": "success",
+    "category": "happy_path"
+  }
+}

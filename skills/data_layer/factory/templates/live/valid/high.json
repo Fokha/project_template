@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "description": "Template for HIGH intensity VALID LIVE data",
+    "source": "live",
+    "validity": "valid",
+    "intensity": "high"
+  },
+  "id": "{uuid}",
+  "timestamp": "{now}",
+  "data": {
+    "value": {"_type": "float", "_min": 900, "_max": 1000},
+    "confidence": {"_type": "float", "_min": 0.85, "_max": 1.0, "_precision": 3},
+    "status": "active",
+    "priority": "critical",
+    "flags": {
+      "urgent": true,
+      "verified": true,
+      "processed": false
+    }
+  }
+}

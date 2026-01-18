@@ -8,7 +8,7 @@ A production-ready project template featuring a **multi-agent system**, **150+ r
 ## Features
 
 - **Multi-Agent System** - Hierarchical agents (THE_ASSISTANT, THE_MASTER, Specialists)
-- **Skills Library** - 74 code templates across 8 categories
+- **Skills Library** - 120+ code templates across 9 categories
 - **Claude Code Integration** - 10+ slash commands ready to use
 - **Documentation Templates** - README, PRD, Dev Guide, CLAUDE.md
 - **Knowledge Base** - SQLite schema for project memory
@@ -52,15 +52,16 @@ project_template/
 │   │   └── SPECIALIST_AGENT_TEMPLATE.md
 │   └── AGENT_SYSTEM.md         # Architecture docs
 │
-├── skills/                     # Code Templates (74 patterns)
+├── skills/                     # Code Templates (120+ patterns)
 │   ├── agentic/        (21)    # AI agent patterns
-│   ├── python_api/     (10)    # Flask API patterns
-│   ├── flutter/        (10)    # Dart/Flutter patterns
-│   ├── machine_learning/(12)   # ML pipeline patterns
+│   ├── data_layer/     (47)    # Data handling patterns
 │   ├── devops/         (10)    # Infrastructure patterns
+│   ├── flutter/        (10)    # Dart/Flutter patterns
 │   ├── integration/    (8)     # Cross-system patterns
+│   ├── machine_learning/(12)   # ML pipeline patterns
+│   ├── mql5/           (9)     # MetaTrader 5 patterns
 │   ├── n8n/            (6)     # Workflow automation
-│   └── mql5/           (9)     # MetaTrader 5 patterns
+│   └── python_api/     (10)    # Flask API patterns
 │
 ├── docs/                       # Documentation Templates
 │   ├── README_TEMPLATE.md
@@ -122,13 +123,14 @@ A hierarchical agent architecture with clear separation of concerns:
 | Category | Count | Description |
 |----------|-------|-------------|
 | `agentic/` | 21 | ReAct, Consensus, Debate, Reflection, Routing, etc. |
-| `python_api/` | 10 | Flask blueprints, endpoints, validation, caching |
-| `flutter/` | 10 | Providers, services, models, widgets, OAuth |
-| `machine_learning/` | 12 | Training, serving, walk-forward, ensembles |
+| `data_layer/` | 47 | Models, Factory, Processors, Storage, Pipeline |
 | `devops/` | 10 | Docker, CI/CD, monitoring, backup, secrets |
+| `flutter/` | 10 | Providers, services, models, widgets, OAuth |
 | `integration/` | 8 | WebSocket, Telegram, webhooks, MT5 bridge |
-| `n8n/` | 6 | Cron workflows, API polling, error handling |
+| `machine_learning/` | 12 | Training, serving, walk-forward, ensembles |
 | `mql5/` | 9 | EA template, indicators, risk management |
+| `n8n/` | 6 | Cron workflows, API polling, error handling |
+| `python_api/` | 10 | Flask blueprints, endpoints, validation, caching |
 
 ### Usage
 
@@ -300,4 +302,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Version:** 2.1 | **Last Updated:** January 2026
+**Version:** 2.2 | **Last Updated:** January 2026

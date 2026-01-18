@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fokha.tech/schemas/data_record.schema.json",
+  "title": "DataRecord",
+  "description": "Base schema for all data records in fokha_data",
+  "type": "object",
+  "required": ["id", "meta", "payload", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)",
+      "pattern": "^[a-zA-Z0-9-_]+$"
+    },
+    "meta": {
+      "$ref": "#/$defs/DataMeta"
+    },
+    "payload": {
+      "description": "The actual data content",
+      "oneOf": [
+        { "type": "object" },
+        { "type": "array" },
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" }
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of creation"
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last update"
+    },
+    "generation": {
+      "$ref": "#/$defs/GenerationConfig"
+    }
+  },
+  "$defs": {
+    "DataMeta": {
+      "type": "object",
+      "description": "Metadata and classification for data",
+      "required": ["source", "validity"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["live", "mock", "hybrid"],
+          "description": "Data source type"
+        },
+        "validity": {
+          "type": "string",
+          "enum": ["valid", "invalid", "edge_case", "partial"],
+          "description": "Data validity status"
+        },
+        "intensity": {
+          "type": "string",
+          "enum": ["high", "neutral", "low", "extreme"],
+          "default": "neutral",
+          "description": "Data intensity/severity level"
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["internal", "external", "user", "computed"],
+          "default": "external",
+          "description": "Where the data originated"
+        },
+        "schema_type": {
+          "type": "string",
+          "enum": ["primitive", "object", "array", "nested", "binary"],
+          "default": "object",
+          "description": "Structural type of the payload"
+        },
+        "version": {
+          "type": "string",
+          "default": "1.0.0",
+          "description": "Schema version"
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Key-value tags for additional classification"
+        },
+        "quality": {
+          "$ref": "#/$defs/QualityScore"
+        }
+      }
+    },
+    "QualityScore": {
+      "type": "object",
+      "description": "Granular quality metrics",
+      "properties": {
+        "validity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "completeness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "accuracy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "freshness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "consistency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "GenerationConfig": {
+      "type": "object",
+      "description": "Configuration for data generation",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["static", "dynamic", "seeded", "sequential"],
+          "default": "static"
+        },
+        "seed": {
+          "type": ["integer", "null"],
+          "description": "Random seed for reproducibility"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "template_name": {
+          "type": ["string", "null"]
+        },
+        "overrides": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

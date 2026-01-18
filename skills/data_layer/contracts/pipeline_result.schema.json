@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fokha.tech/schemas/pipeline_result.schema.json",
+  "title": "PipelineResult",
+  "description": "Result of pipeline execution",
+  "type": "object",
+  "required": ["success"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether pipeline completed successfully"
+    },
+    "data": {
+      "description": "Final output data from pipeline"
+    },
+    "total_duration_ms": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total execution time in milliseconds"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Error message if pipeline failed"
+    },
+    "stage_results": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/StageResult"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "StageResult": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "success", "failed", "skipped"]
+        },
+        "error": {
+          "type": ["string", "null"]
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

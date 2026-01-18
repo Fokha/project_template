@@ -1,0 +1,9 @@
+{
+  "_meta": {
+    "description": "Default template for any data type",
+    "version": "1.0.0"
+  },
+  "id": "{uuid}",
+  "timestamp": "{now}",
+  "data": {}
+}

@@ -13,14 +13,15 @@ This directory contains **reusable skill templates** extracted from the Fokha Tr
 ```
 skills/
 ├── SKILLS_INDEX.md          # This file - Master reference
+├── agentic/                 # AI agent design patterns
+├── data_layer/              # Data handling patterns (NEW)
+├── devops/                  # Infrastructure patterns
 ├── flutter/                 # Flutter/Dart patterns
-├── python_api/              # Python Flask API patterns
+├── integration/             # Cross-system integration patterns
 ├── machine_learning/        # ML pipeline patterns
 ├── mql5/                    # MetaTrader 5 patterns
-├── devops/                  # Infrastructure patterns
 ├── n8n/                     # Workflow automation patterns
-├── agentic/                 # AI agent design patterns
-└── integration/             # Cross-system integration patterns
+└── python_api/              # Python Flask API patterns
 ```
 
 ---
@@ -29,29 +30,31 @@ skills/
 
 | Category | Skills | Files | Complexity | Used In Trading |
 |----------|--------|-------|------------|-----------------|
+| **Agentic AI** | 21 patterns | 21 templates | ⭐⭐⭐⭐⭐ | Yes (PatternExecutor) |
+| **Data Layer** | 7 modules | 47 templates | ⭐⭐⭐⭐ | Yes (unified data) |
+| **DevOps** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (automation) |
 | **Flutter** | 8 patterns | 8 templates | ⭐⭐⭐ | Yes (fokha_apps) |
-| **Python API** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (api_server.py) |
+| **Integration** | 8 patterns | 8 templates | ⭐⭐⭐⭐ | Yes (bridge) |
 | **Machine Learning** | 12 patterns | 12 templates | ⭐⭐⭐⭐ | Yes (ML models) |
 | **MQL5** | 8 patterns | 10 templates | ⭐⭐⭐⭐ | Yes (Ultimate EA v19) |
-| **DevOps** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (automation) |
 | **N8N** | 10 patterns | 10 templates | ⭐⭐ | Yes (45 workflows) |
-| **Agentic AI** | 21 patterns | 21 templates | ⭐⭐⭐⭐⭐ | Yes (PatternExecutor) |
-| **Integration** | 8 patterns | 8 templates | ⭐⭐⭐⭐ | Yes (bridge) |
+| **Python API** | 10 patterns | 10 templates | ⭐⭐⭐ | Yes (api_server.py) |
 
-**Total: 87 skill patterns**
+**Total: 94 skill patterns (136 files)**
 
 ### Trading System Usage Summary
 
 | Skill Category | Integration Point | Active Usage |
 |----------------|-------------------|--------------|
+| Agentic | PatternExecutor | 13 execution endpoints |
+| Data Layer | fokha_data package | Models, Factory, Pipeline, Storage |
+| DevOps | Oracle Cloud + Local | Active-active failover |
 | Flutter | fokha_apps (6 apps) | AgentConfigService, MLSignalService |
-| Python API | localhost:5050 | 242+ endpoints, 577 tests |
+| Integration | WebSocket + REST | Real-time + batch processing |
 | Machine Learning | SignalClassificationModel | 8-TF consensus voting |
 | MQL5 | Ultimate System v19.0 | PropFirm profiles, 25 strategies |
-| DevOps | Oracle Cloud + Local | Active-active failover |
 | N8N | 45 workflows | Signal generation, monitoring |
-| Agentic | PatternExecutor | 13 execution endpoints |
-| Integration | WebSocket + REST | Real-time + batch processing |
+| Python API | localhost:5050 | 242+ endpoints, 577 tests |
 
 ---
 
@@ -419,6 +422,79 @@ Some skills work together:
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 9. Data Layer Skills (`data_layer/`)
+
+### Overview
+
+A complete, unified data handling template providing consistent patterns for data classification, generation, processing, storage, and pipeline orchestration.
+
+### Modules
+
+| # | Module | Files | Description |
+|---|--------|-------|-------------|
+| 1 | **models/** | 3 | Data classification (DataSource, Validity, Intensity), DataRecord, DataMeta |
+| 2 | **factory/** | 8 | Test data generation with static/dynamic generators and JSON templates |
+| 3 | **processors/** | 5 | Validator, Formatter, Sorter, Transformer |
+| 4 | **unifiers/** | 4 | Merger, Normalizer, Deduplicator |
+| 5 | **storage/** | 8 | BaseStorage interface, Memory/File/SQLite implementations, Repository |
+| 6 | **pipeline/** | 6 | Orchestrator, Stage, Requester, Gatherer |
+| 7 | **contracts/** | 3 | JSON Schema definitions for data validation |
+
+### Data Classification System
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DATA CLASSIFICATION                       │
+├─────────────────────────────────────────────────────────────┤
+│  Source:    LIVE | MOCK | HYBRID                            │
+│  Validity:  VALID | INVALID | EDGE_CASE | PARTIAL           │
+│  Intensity: HIGH | NEUTRAL | LOW | EXTREME                  │
+│  Origin:    INTERNAL | EXTERNAL | USER | COMPUTED           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Pipeline Flow
+
+```
+Request → Gather → Validate → Format → Sort → Store → Process → Output
+```
+
+### Usage Example
+
+```python
+from data_layer import DataRecord, DataMeta, DataSource, Validity
+from data_layer import DataFactory, Validator, Pipeline, Stage, MemoryStorage
+
+# Create classified data
+record = DataRecord(
+    meta=DataMeta(source=DataSource.LIVE, validity=Validity.VALID),
+    payload={"symbol": "AAPL", "price": 150.0}
+)
+
+# Generate test data
+factory = DataFactory()
+test_data = factory.generate(count=100, source=DataSource.MOCK)
+
+# Build pipeline
+pipeline = (Pipeline("etl")
+    .add_stage(Stage("validate", validator.validate))
+    .add_stage(Stage("store", storage.save)))
+
+result = pipeline.execute(record)
+```
+
+### Key Features
+
+| Feature | Benefit |
+|---------|---------|
+| Multi-dimensional classification | Distinguish live/mock, valid/invalid data |
+| Factory pattern | Generate consistent test data |
+| Storage abstraction | Switch between Memory, File, SQLite |
+| Pipeline orchestration | Compose processing stages |
+| JSON contracts | Schema validation and documentation |
 
 ---
 

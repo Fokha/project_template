@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "description": "Template for LOW intensity VALID LIVE data",
+    "source": "live",
+    "validity": "valid",
+    "intensity": "low"
+  },
+  "id": "{uuid}",
+  "timestamp": "{now}",
+  "data": {
+    "value": {"_type": "float", "_min": 0, "_max": 200},
+    "confidence": {"_type": "float", "_min": 0.2, "_max": 0.5, "_precision": 3},
+    "status": "active",
+    "priority": "low",
+    "flags": {
+      "urgent": false,
+      "verified": false,
+      "processed": false
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fokha.tech/schemas/validation_result.schema.json",
+  "title": "ValidationResult",
+  "description": "Result of data validation",
+  "type": "object",
+  "required": ["is_valid"],
+  "properties": {
+    "is_valid": {
+      "type": "boolean",
+      "description": "Whether the data passed validation"
+    },
+    "error_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "errors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ValidationError" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ValidationError" }
+    },
+    "info": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ValidationError" }
+    },
+    "validated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "ValidationError": {
+      "type": "object",
+      "required": ["field", "message", "severity"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Path to the field that failed validation"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Machine-readable error code"
+        },
+        "value": {
+          "description": "The value that failed validation"
+        }
+      }
+    }
+  }
+}

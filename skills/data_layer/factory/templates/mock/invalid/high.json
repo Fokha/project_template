@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "description": "Template for HIGH intensity INVALID MOCK data (error testing)",
+    "source": "mock",
+    "validity": "invalid",
+    "intensity": "high"
+  },
+  "id": "invalid-{seq}",
+  "timestamp": "invalid-date-format",
+  "data": {
+    "value": -999,
+    "confidence": 1.5,
+    "status": null,
+    "priority": "",
+    "flags": {
+      "urgent": "not-a-boolean",
+      "verified": null,
+      "processed": 123
+    }
+  },
+  "_test": {
+    "expected_result": "validation_error",
+    "category": "error_handling",
+    "expected_errors": [
+      "timestamp_invalid_format",
+      "value_out_of_range",
+      "confidence_out_of_range",
+      "status_null_not_allowed",
+      "priority_empty_string",
+      "flags_type_mismatch"
+    ]
+  }
+}
