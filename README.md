@@ -3,12 +3,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/Fokha/project_template.svg)](https://github.com/Fokha/project_template/stargazers)
 
-A production-ready project template featuring a **multi-agent system**, **150+ reusable code patterns**, and **Claude Code integration**. Battle-tested in the Fokha Trading System.
+A production-ready project template featuring a **multi-agent system**, **107 reusable code patterns**, and **Claude Code integration**. Battle-tested in the Fokha Trading System.
 
 ## Features
 
 - **Multi-Agent System** - Hierarchical agents (THE_ASSISTANT, THE_MASTER, Specialists)
-- **Skills Library** - 120+ code templates across 9 categories
+- **Skills Library** - 107 code templates across 9 categories
 - **Claude Code Integration** - 10+ slash commands ready to use
 - **Documentation Templates** - README, PRD, Dev Guide, CLAUDE.md
 - **Knowledge Base** - SQLite schema for project memory
