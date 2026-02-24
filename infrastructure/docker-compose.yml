@@ -16,7 +16,7 @@ services:
     container_name: ${PROJECT_NAME:-myproject}-api
     restart: unless-stopped
     ports:
-      - "${API_PORT:-5050}:5050"
+      - "127.0.0.1:${API_PORT:-5050}:5050"
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - PYTHONUNBUFFERED=1
@@ -49,7 +49,7 @@ services:
     container_name: ${PROJECT_NAME:-myproject}-n8n
     restart: unless-stopped
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
@@ -113,7 +113,7 @@ services:
     container_name: ${PROJECT_NAME:-myproject}-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
