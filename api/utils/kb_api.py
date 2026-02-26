@@ -160,6 +160,21 @@ def update_task(task_id):
     if data.get('status') == 'done' and 'completed_at' not in data:
         updates.append("completed_at = datetime('now')")
 
+    # ENFORCE: Cannot mark task done without a work log
+    if data.get('status') == 'done':
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM kb_work_logs WHERE task_id = ?",
+            (task_id,)
+        )
+        log_count = cursor.fetchone()['cnt']
+        if log_count == 0:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': f'Cannot mark {task_id} as done — no work log found. '
+                         f'POST /kb/work-logs with task_id, summary, and retrospective first.'
+            }), 400
+
     params.append(task_id)
     query = f"UPDATE kb_tasks SET {', '.join(updates)} WHERE task_id = ?"
 
