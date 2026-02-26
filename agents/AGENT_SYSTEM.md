@@ -387,31 +387,84 @@ Final Answer: [Detailed implementation plan]
 
 ## Integration Points
 
-### 1. Knowledge Base
-All agents read/write to shared SQLite database:
-```python
-# Agent stores task update
-INSERT INTO tasks (title, status, assigned_to) VALUES (...)
+### 1. Knowledge Base API
 
-# Agent reads project context
-SELECT * FROM activity_log WHERE session_id = ?
+All agents coordinate via the KB REST API at `http://localhost:5050/kb/`:
+
+```bash
+# Register agent
+curl -X POST http://localhost:5050/kb/agents/AGENT_NAME \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "specialist", "focus": "description"}'
+
+# Get tasks
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/tasks?assigned_to=AGENT_NAME
+
+# Run preflight (check lessons, conflicts, warnings)
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/preflight/T001
+
+# Lock files
+curl -X PUT http://localhost:5050/kb/agents/AGENT_NAME \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"locked_files": ["file1.py"], "working_on_task_id": "T001"}'
+
+# Log work with retrospective
+curl -X POST http://localhost:5050/kb/work-logs \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "AGENT_NAME", "task_id": "T001", "action": "completed",
+       "summary": "What was done", "retrospective": "What went well/badly",
+       "lesson_learned": "Key insight", "tags": ["python", "api"]}'
+
+# Team dashboard
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/team/status
 ```
 
-### 2. File-Based Communication
-For cross-session handoffs:
+### KB API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/resume` | GET | Full session context |
+| `/kb/team/status` | GET | Team dashboard |
+| `/kb/tasks` | GET/POST | Task management |
+| `/kb/tasks/<id>` | GET/PUT | Task details/update |
+| `/kb/preflight/<id>` | GET | Pre-task check (lessons, conflicts, warnings) |
+| `/kb/tasks/<id>/conflicts` | GET | File locks & dependency conflicts |
+| `/kb/lessons` | GET | Search lessons by keyword/tags |
+| `/kb/agents/<id>` | POST/PUT/DELETE | Agent registry |
+| `/kb/agents/<id>/skills` | GET/POST | Skill matrix |
+| `/kb/memory/<id>` | GET/POST | Per-agent persistent memory |
+| `/kb/work-logs` | GET/POST | Work logs with retrospectives |
+| `/kb/messages` | GET/POST | Inter-agent messages |
+| `/kb/decisions` | GET/POST | Architecture decisions |
+| `/kb/health-check` | POST | Post-task verification |
+| `/kb/skills/matrix` | GET | Full skill matrix |
+
+### 2. Agent Coordination Workflow
+
 ```
-.agents/sessions/
-├── BACKEND_DEV_handoff_20260112.md
-├── MASTER_architecture_decision_001.md
-└── current_sprint.md
+1. SESSION START  → POST /kb/agents/NAME (register)
+2. CHECK TEAM     → GET /kb/team/status (see locks, tasks)
+3. CLAIM TASK     → PUT /kb/tasks/T### (status: in_progress)
+4. PREFLIGHT      → GET /kb/preflight/T### (check lessons, conflicts)
+5. LOCK FILES     → PUT /kb/agents/NAME (locked_files: [...])
+6. DO WORK        → Edit code, test, commit
+7. LOG WORK       → POST /kb/work-logs (with retrospective + lesson)
+8. RELEASE        → PUT /kb/agents/NAME (locked_files: [])
+9. MARK DONE      → PUT /kb/tasks/T### (status: done)
+10. HEALTH CHECK  → POST /kb/health-check
+11. SESSION END   → DELETE /kb/agents/NAME
 ```
 
-### 3. Claude Code Skills
-Slash commands invoke agents:
+### 3. Claude Code Slash Commands
 ```
-/assistant <request>  → THE_ASSISTANT handles
-/status              → System status check
-/deploy              → DEVOPS handles
+/agent      → Agent registration and management
+/task       → Task CRUD and preflight
+/status     → Team dashboard and project status
+/session    → Session start/resume/end
+/preflight  → Pre-task check (lessons, conflicts)
+/done       → Definition of Done checklist
+/complete   → Full task completion workflow
+/sync       → KB sync, messages, decisions
 ```
 
 ---

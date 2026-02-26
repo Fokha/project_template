@@ -1,61 +1,63 @@
-# Task Management Commands
+# Task Management
 
-Create, track, and manage tasks.
+Create, track, and manage tasks via the Knowledge Base API.
 
 ## List Tasks
-
 ```bash
-python3 .agents/tools/agent_registry.py task list
+# All active tasks
+curl -s -H "X-API-Key: $API_KEY" "http://localhost:5050/kb/tasks?status=pending" | python3 -m json.tool
+
+# By assignee
+curl -s -H "X-API-Key: $API_KEY" "http://localhost:5050/kb/tasks?assigned_to=AGENT_NAME" | python3 -m json.tool
+
+# By priority
+curl -s -H "X-API-Key: $API_KEY" "http://localhost:5050/kb/tasks?priority=high" | python3 -m json.tool
 ```
 
-## Add Task
-
+## Create Task
 ```bash
-python3 .agents/tools/agent_registry.py task add "Task title" ASSIGNED_TO --priority high|medium|low --from CREATOR
+curl -X POST http://localhost:5050/kb/tasks \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"title": "Task title", "description": "Details", "assigned_to": "AGENT", "priority": "medium", "status": "backlog"}'
 ```
 
-## Mark Task Done
-
-Simple completion:
+## Update Task
 ```bash
-python3 .agents/tools/agent_registry.py task done TASK_ID
+# Start working
+curl -X PUT http://localhost:5050/kb/tasks/T### \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "in_progress", "assigned_to": "AGENT"}'
+
+# Mark done
+curl -X PUT http://localhost:5050/kb/tasks/T### \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "done"}'
 ```
 
-Full completion workflow:
+## Preflight Check (before starting a task)
 ```bash
-python3 .agents/tools/agent_registry.py task complete TASK_ID SESSION_ID ROLE "Summary"
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/preflight/T### | python3 -m json.tool
 ```
 
-## Assign Task
-
+## Check Conflicts
 ```bash
-python3 .agents/tools/agent_registry.py task assign TASK_ID ASSIGNED_TO --from FROM_AGENT
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/tasks/T###/conflicts | python3 -m json.tool
 ```
 
-## Update Status
-
-```bash
-python3 .agents/tools/agent_registry.py task status TASK_ID open|in_progress|done|blocked
-```
-
-## Task Assignment Rules
-
-| Task Type | Assign To |
-|-----------|-----------|
-| Python/ML/API | PYTHON_ML |
-| Flutter/Mobile | FLUTTER_AGENT |
-| MQL5/Trading EA | MQL5_AGENT |
-| N8N/Automation | N8N_AGENT |
-| Cloud/Deploy | DEVOPS |
-| Documentation | DOCUMENTATION |
-| Testing/QA | TESTER or REVIEWER |
-| Research | RESEARCHER |
-| Unclear | ORCHESTRATOR |
+## Task Statuses
+| Status | Meaning |
+|--------|---------|
+| `backlog` | Not started |
+| `pending` | Ready to work on |
+| `in_progress` | Being worked on |
+| `done` | Completed |
+| `cancelled` | No longer needed |
 
 ## Quick Actions
 
 Based on user request:
-- "list tasks" → Show all tasks
-- "add task: X" → Create task with title X
-- "done TASK_ID" → Mark task complete
-- "assign TASK_ID to X" → Assign task to agent X
+- "list tasks" → GET /kb/tasks
+- "add task: X" → POST /kb/tasks
+- "start T###" → PUT /kb/tasks/T### status=in_progress
+- "done T###" → PUT /kb/tasks/T### status=done
+- "preflight T###" → GET /kb/preflight/T###

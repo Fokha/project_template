@@ -1,37 +1,55 @@
-# Agent Management Commands
+# Agent Management
 
-Access to the multi-agent system tools.
+Manage agents via the Knowledge Base API.
 
-## Available Commands
-
-Run these commands to interact with the agent system:
-
-### Register Agent
+## Register Agent
 ```bash
-python3 .agents/tools/agent_registry.py register ROLE --focus "Your specialization"
+curl -X POST http://localhost:5050/kb/agents/$AGENT_ID \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "{{role}}", "focus": "{{focus}}", "repo": "{{repo}}", "capabilities": []}'
 ```
 
-### List Agents
+## List Active Agents
 ```bash
-python3 .agents/tools/agent_registry.py list
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/agents | python3 -m json.tool
 ```
 
-### Update Status
+## Team Dashboard
 ```bash
-python3 .agents/tools/agent_registry.py status ROLE -w "Current task description"
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/team/status | python3 -m json.tool
 ```
 
-### Leave Session
+## Update Agent Status
 ```bash
-python3 .agents/tools/agent_registry.py leave ROLE --summary "Session summary"
+curl -X PUT http://localhost:5050/kb/agents/$AGENT_ID \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "busy", "working_on": "description", "working_on_task_id": "T###", "locked_files": ["file1.py"]}'
+```
+
+## Send Heartbeat
+```bash
+curl -X POST http://localhost:5050/kb/agents/$AGENT_ID/heartbeat -H "X-API-Key: $API_KEY"
+```
+
+## Deregister Agent
+```bash
+curl -X DELETE http://localhost:5050/kb/agents/$AGENT_ID -H "X-API-Key: $API_KEY"
+```
+
+## Skill Matrix
+```bash
+# View all agent skills
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/skills/matrix | python3 -m json.tool
+
+# View one agent's skills
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/agents/$AGENT_ID/skills | python3 -m json.tool
 ```
 
 ## Quick Actions
 
-Based on user request, execute the appropriate command above.
-
-If user says:
-- "register as X" → Run register command with role X
-- "list agents" or "who's online" → Run list command
-- "update status" → Run status command
-- "leave" or "sign off" → Run leave command
+Based on user request:
+- "register as X" → POST /kb/agents/X with role
+- "list agents" or "who's online" → GET /kb/agents
+- "team status" → GET /kb/team/status
+- "update status" → PUT /kb/agents/X
+- "leave" or "sign off" → DELETE /kb/agents/X

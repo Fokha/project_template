@@ -1,14 +1,19 @@
 {
   "permissions": {
     "allow": [
+      "Bash(curl *localhost:5050/kb*)",
+      "Bash(curl *localhost:5050/health*)",
       "Bash(python3 .agents/*)",
       "Bash(./scripts/*)",
       "Bash(git *)",
       "Bash(pytest *)",
+      "Bash(docker *)",
       "Read(.agents/*)",
+      "Read(agents/*)",
       "Read(scripts/*)",
       "Read(docs/*)",
-      "Write(.agents/sessions/*)",
+      "Read(api/*)",
+      "Read(knowledge_base/*)",
       "Write(tests/*)",
       "Write(CHANGELOG.md)"
     ],
@@ -19,6 +24,6 @@
   },
   "env": {
     "PROJECT_TYPE": "fokha-template",
-    "AGENT_TOOLS": ".agents/agent_tools.py"
+    "KB_URL": "http://localhost:5050/kb"
   }
 }

@@ -95,8 +95,10 @@ df -h
 ## Register as INFRASTRUCTURE Agent
 
 ```bash
-python3 .agents/tools/agent_registry.py register INFRASTRUCTURE --focus "DevOps, Claude Code, backups"
-python3 .agents/tools/agent_registry.py session start INFRASTRUCTURE
+curl -X POST http://localhost:5050/kb/agents/INFRASTRUCTURE \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "devops", "focus": "Infrastructure, Docker, backups, deployment",
+       "capabilities": ["docker", "linux", "deployment", "monitoring"]}'
 ```
 
 ## Related Commands

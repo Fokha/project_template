@@ -1,48 +1,56 @@
 # Task Completion Command
 
-Complete a task with the full 9-phase workflow.
+Complete a task with the full KB-integrated workflow.
 
-## Usage
-
-When user wants to complete a task, run:
+## Quick Completion
 
 ```bash
-./scripts/complete_task.sh TASK_ID SESSION_ID ROLE "Summary of work done"
-```
+AGENT="YOUR_AGENT"
+TASK="T###"
 
-## Workflow Phases
+# 1. Log work with retrospective
+curl -X POST http://localhost:5050/kb/work-logs \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d "{\"agent_id\": \"$AGENT\", \"task_id\": \"$TASK\", \"action\": \"completed\",
+       \"summary\": \"Summary of work done\",
+       \"files_changed\": [\"file1.py\", \"file2.py\"],
+       \"retrospective\": \"What went well and what could be improved\",
+       \"lesson_learned\": \"Key takeaway for future reference\",
+       \"tags\": [\"skill1\", \"skill2\"]}"
 
-1. Pre-completion verification (tests)
-2. Test generation for task
-3. Git operations (add, commit)
-4. Database updates (task status)
-5. CHANGELOG.md update
-6. Team notification
-7. Backup creation
-8. Sync operations (git push, cloud)
-9. Completion report
+# 2. Release locks and mark done
+curl -X PUT http://localhost:5050/kb/agents/$AGENT \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"locked_files": [], "working_on_task_id": null}'
 
-## Options
+curl -X PUT http://localhost:5050/kb/tasks/$TASK \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "done"}'
 
-- `--skip-tests` - Skip test generation/verification
-- `--skip-git` - Skip git operations
-- `--skip-backup` - Skip backup creation
-- `--skip-sync` - Skip sync operations
+# 3. Health check
+curl -s -X POST http://localhost:5050/kb/health-check \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d "{\"agent_id\": \"$AGENT\", \"task_id\": \"$TASK\",
+       \"checks\": [{\"type\": \"task_complete\"}, {\"type\": \"files_unlocked\"},
+                     {\"type\": \"work_logged\"}, {\"type\": \"retrospective\"}]}" | python3 -m json.tool
 
-## Quick Version
-
-For a lighter completion without test generation:
-
-```bash
-python3 .agents/tools/agent_registry.py task complete TASK_ID SESSION_ID ROLE "Summary"
+# 4. Git commit
+git add -A && git commit -m "[$TASK] Task description"
 ```
 
 ## Required Information
 
-Before running, ensure you have:
-- TASK_ID (e.g., TASK-PYTH-20260112-001)
-- SESSION_ID (from session start, e.g., SESS-PYTH-20260112-001)
-- ROLE (your agent role, e.g., PYTHON_ML)
-- Summary (brief description of what was accomplished)
+Before completing, ensure you have:
+- **AGENT** — Your agent name (e.g., BACKEND_DEV, MASTER)
+- **TASK** — Task ID (e.g., T001)
+- **Summary** — What was accomplished
+- **Retrospective** — What went well/badly
+- **Lesson** — Key takeaway (auto-saved to lessons DB)
 
-If any are missing, ask the user to provide them.
+## Workflow Phases
+
+1. Log work with retrospective → auto-captures lesson + updates skill matrix
+2. Release file locks → allows other agents to edit
+3. Mark task done → updates status with completion timestamp
+4. Health check → verifies everything is clean
+5. Git commit → persist changes with task reference

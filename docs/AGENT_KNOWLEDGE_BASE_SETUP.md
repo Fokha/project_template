@@ -350,11 +350,156 @@ INSERT INTO kb_documents (doc_id, title, doc_type, category, content_text) VALUE
 "
 ```
 
+## Multi-Agent Coordination
+
+### Agent Registry
+
+Agents register with the KB to coordinate work across terminals.
+
+#### Tables
+- **kb_agents** — Agent registry with status, focus, locked files, heartbeat
+- **kb_work_logs** — What each agent completed, files changed, commit hashes
+
+#### API Endpoints
+
+```bash
+KB_URL=http://localhost:5050/kb
+
+# Register agent
+curl -X POST "$KB_URL/agents/MY_AGENT" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "developer", "focus": "what you do", "repo": "repo_name", "capabilities": ["dart", "flutter"]}'
+
+# List all agents
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/agents"
+
+# Update status and lock files
+curl -X PUT "$KB_URL/agents/MY_AGENT" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "busy", "working_on": "T230", "locked_files": ["lib/main.dart"]}'
+
+# Heartbeat (send every few minutes)
+curl -X POST "$KB_URL/agents/MY_AGENT/heartbeat" -H "X-API-Key: $API_KEY"
+
+# Deregister when done
+curl -X DELETE "$KB_URL/agents/MY_AGENT" -H "X-API-Key: $API_KEY"
+```
+
+### Work Logging
+
+Every agent logs what they complete for audit trail and coordination.
+
+```bash
+# Log completed work
+curl -X POST "$KB_URL/work-logs" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "MY_AGENT", "task_id": "T230", "action": "completed", "summary": "description of work", "files_changed": ["file1.dart", "file2.dart"], "commit_hash": "abc123"}'
+
+# View work logs
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/work-logs?agent_id=MY_AGENT"
+```
+
+### Team Dashboard
+
+Single endpoint for full coordination overview.
+
+```bash
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/team/status"
+```
+
+Returns: all agents, locked files, task summary, active tasks, available tasks, recent work logs, recent activity.
+
+### Coordination Workflow
+
+1. **Register** → `POST /kb/agents/NAME`
+2. **Check dashboard** → `GET /kb/team/status` (see locked files, available tasks)
+3. **Claim task** → `PUT /kb/tasks/T###` with `status: in_progress, assigned_to: NAME`
+4. **Preflight** → `GET /kb/preflight/T###` (check lessons, conflicts, warnings)
+5. **Lock files** → `PUT /kb/agents/NAME` with `locked_files: [...]`
+6. **Do work** → Edit files, commit (don't push)
+7. **Log work** → `POST /kb/work-logs` (with `retrospective` and `lesson_learned`)
+8. **Release** → `PUT /kb/agents/NAME` with `locked_files: []`
+9. **Mark done** → `PUT /kb/tasks/T###` with `status: done`
+10. **Health check** → `POST /kb/health-check`
+
+### Rules
+- Check `locked_files` before editing ANY file another agent might touch
+- Only Master terminal pushes to remote
+- All agents commit with `[T###]` prefix in commit messages
+- Always run preflight before starting a task
+- Always log retrospective when completing work
+
+## Evolution Features (v2.0)
+
+### Preflight Check
+```bash
+# Returns relevant lessons, decisions, conflicts, and warnings before starting a task
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/preflight/T001"
+```
+
+### Lessons Lookup
+```bash
+# Search past lessons by keyword, topic, or tags
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/lessons?keyword=authentication"
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/lessons?tags=bug,critical"
+```
+
+### Task Conflict Detection
+```bash
+# Check for file locks, blocking dependencies, agent overlap
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/tasks/T001/conflicts"
+```
+
+### Retrospectives & Auto-Learning
+```bash
+# Work logs now support retrospective and lesson_learned fields
+# lesson_learned auto-creates a research entry in the KB
+# tags auto-update the agent's skill matrix
+curl -X POST "$KB_URL/work-logs" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "DEV", "task_id": "T001", "action": "completed",
+       "summary": "What was done", "retrospective": "What went well/badly",
+       "lesson_learned": "Key insight", "tags": ["python", "api"]}'
+```
+
+### Agent Skill Matrix
+```bash
+# Scores auto-update when work is logged with tags
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/skills/matrix"
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/agents/DEV/skills"
+
+# Manually update a skill score
+curl -X POST "$KB_URL/agents/DEV/skills" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"skill": "react", "score": 8.0}'
+```
+
+### Per-Agent Memory (Cross-Session)
+```bash
+# Save persistent memory for an agent
+curl -X POST "$KB_URL/memory/DEV" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"key": "preferred_workflow", "content": "Always run tests before committing", "category": "preferences"}'
+
+# Load agent memory
+curl -s -H "X-API-Key: $API_KEY" "$KB_URL/memory/DEV"
+```
+
+### Post-Task Health Check
+```bash
+# Verify task completion quality
+curl -X POST "$KB_URL/health-check" \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "DEV", "task_id": "T001",
+       "checks": [{"type": "task_complete"}, {"type": "files_unlocked"},
+                   {"type": "work_logged"}, {"type": "retrospective"}]}'
+```
+
 ## Best Practices
 
 ### 1. Task Management
 - Create tasks with clear, actionable titles
-- Use consistent status values: `backlog`, `in_progress`, `done`, `cancelled`
+- Use consistent status values: `backlog`, `pending`, `in_progress`, `done`, `cancelled`
 - Link related research to tasks via `related_task_id`
 
 ### 2. Decision Recording

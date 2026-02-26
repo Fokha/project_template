@@ -1,68 +1,105 @@
 # Project Tools Index
 
-All available tools and scripts in this project.
+## Knowledge Base API (http://localhost:5050/kb/)
 
-## Agent Tools (python3 .agents/tools/agent_registry.py)
+All agent coordination goes through the KB REST API.
 
-| Command | Description |
-|---------|-------------|
-| `register ROLE` | Register as an agent |
-| `list` | List all agents |
-| `leave ROLE` | Leave session |
-| `status ROLE -w "..."` | Update working status |
-| `msg list` | List messages |
-| `msg send FROM TO "Subj" "Msg"` | Send message |
-| `msg broadcast FROM "Subj" "Msg"` | Broadcast to all |
-| `session start ROLE` | Start work session |
-| `session log SID "..."` | Log activity |
-| `session end SID "..."` | End session |
-| `task list` | List all tasks |
-| `task add "Title" AGENT` | Create task |
-| `task done TASK_ID` | Mark task done |
-| `task complete TASK_ID SID ROLE "Summary"` | Full completion |
-| `task assign TASK_ID AGENT` | Assign task |
-| `task status TASK_ID STATUS` | Update task status |
+### Core Endpoints
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/resume` | GET | Full session context |
+| `/kb/team/status` | GET | Team dashboard |
+| `/kb/project` | GET | Project info |
+| `/kb/context` | GET/POST | Session context |
+
+### Task Management
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/tasks` | GET/POST | List/create tasks |
+| `/kb/tasks/<id>` | GET/PUT | Get/update task |
+| `/kb/preflight/<id>` | GET | Pre-task check |
+| `/kb/tasks/<id>/conflicts` | GET | Conflict detection |
+| `/kb/lessons` | GET | Search lessons |
+
+### Agent Coordination
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/agents/<id>` | POST/PUT/DELETE | Register/update/deregister |
+| `/kb/agents/<id>/heartbeat` | POST | Keep-alive |
+| `/kb/agents/<id>/skills` | GET/POST | Skill matrix |
+| `/kb/memory/<id>` | GET/POST | Persistent memory |
+| `/kb/skills/matrix` | GET | All agent skills |
+
+### Communication
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/messages` | GET/POST | Inter-agent messages |
+| `/kb/decisions` | GET/POST | Architecture decisions |
+| `/kb/research` | GET/POST | Research entries |
+| `/kb/activity` | GET/POST | Activity log |
+
+### Work & Quality
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/kb/work-logs` | GET/POST | Work logs with retrospectives |
+| `/kb/health-check` | POST | Post-task verification |
+| `/kb/conversations` | POST | Save conversation points |
+| `/kb/architecture` | GET/POST | Component docs |
 
 ## Scripts (./scripts/)
 
 | Script | Description |
 |--------|-------------|
-| `complete_task.sh` | Full 9-phase task completion workflow |
+| `init_project.sh` | Initialize new project from template |
+| `complete_task.sh` | Full task completion workflow |
 | `create_project.sh` | Create new project from template |
-| `run_tests.sh` | Run test suite (smoke, all, coverage) |
-| `sync_to_cloud.sh` | Sync to cloud server |
-| `sync_to_sdcard.sh` | Sync to SD card backup |
+| `dev-start.sh` | Start tmux dev environment |
+| `dev-stop.sh` | Stop tmux dev environment |
 
 ## Slash Commands
 
-| Command | Description |
-|---------|-------------|
-| `/agent` | Agent management |
-| `/session` | Session management |
-| `/task` | Task management |
-| `/msg` | Messaging |
-| `/complete` | Complete a task |
-| `/status` | Project status overview |
-| `/sync` | Sync operations |
+| Command | Purpose |
+|---------|---------|
+| `/agent` | Agent registration and management |
+| `/task` | Task CRUD and preflight |
+| `/status` | Team dashboard and project status |
+| `/session` | Session start/resume/end |
+| `/preflight` | Pre-task check (lessons, conflicts) |
+| `/done` | Definition of Done checklist |
+| `/complete` | Full task completion workflow |
+| `/sync` | KB sync, messages, decisions |
+| `/msg` | Inter-agent messaging |
+| `/infra` | Infrastructure commands |
 | `/backup` | Backup operations |
-| `/tools` | This tools index |
+| `/release` | Release management |
 
-## Quick Reference
+## Agent Workflow Quick Reference
 
 ```bash
+KB="http://localhost:5050/kb"
+
 # Start working
-python3 .agents/tools/agent_registry.py register ROLE --focus "My focus"
-python3 .agents/tools/agent_registry.py session start ROLE
-# Note the SESSION_ID!
+curl -X POST "$KB/agents/NAME" -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "role", "focus": "focus area"}'
+curl -s -H "X-API-Key: $API_KEY" "$KB/team/status" | python3 -m json.tool
 
 # During work
-python3 .agents/tools/agent_registry.py session log $SID "What I did"
-python3 .agents/tools/agent_registry.py msg broadcast ROLE "Update" "Progress note"
+curl -s -H "X-API-Key: $API_KEY" "$KB/preflight/T###" | python3 -m json.tool
+curl -X PUT "$KB/agents/NAME" -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"working_on_task_id": "T###", "locked_files": ["file1.py"]}'
 
 # Complete task
-./scripts/complete_task.sh TASK_ID $SID ROLE "Summary"
+curl -X POST "$KB/work-logs" -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "NAME", "task_id": "T###", "action": "completed",
+       "summary": "What was done", "retrospective": "Reflection",
+       "lesson_learned": "Key insight", "tags": ["skill1"]}'
+
+# Release and mark done
+curl -X PUT "$KB/agents/NAME" -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"locked_files": [], "working_on_task_id": null}'
+curl -X PUT "$KB/tasks/T###" -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"status": "done"}'
 
 # End session
-python3 .agents/tools/agent_registry.py session end $SID "Session summary"
-python3 .agents/tools/agent_registry.py leave ROLE --summary "Done"
+curl -X DELETE "$KB/agents/NAME" -H "X-API-Key: $API_KEY"
 ```

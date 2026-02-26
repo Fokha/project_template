@@ -205,17 +205,29 @@ curl http://localhost:5050/health
 \`\`\`
 
 ## Agent System
-This project uses a multi-agent system. See \`agents/AGENT_SYSTEM.md\` for details.
+This project uses a multi-agent system with a centralized Knowledge Base API.
+See \`agents/AGENT_SYSTEM.md\` for architecture details.
 
-## Commands
-- \`/agent-comms\` - View agent activity
-- \`/research <topic>\` - Research a topic
-- \`/parallel-tasks\` - Run parallel tasks
+### KB API Endpoints (http://localhost:5050/kb/)
+| Endpoint | Purpose |
+|----------|---------|
+| \`/kb/resume\` | Full session context |
+| \`/kb/team/status\` | Team dashboard |
+| \`/kb/tasks\` | Task management |
+| \`/kb/preflight/<id>\` | Pre-task check (lessons, conflicts) |
+| \`/kb/lessons\` | Search past lessons |
+| \`/kb/agents/<id>\` | Agent registry |
+| \`/kb/work-logs\` | Work logs with retrospectives |
+| \`/kb/health-check\` | Post-task verification |
+
+### Slash Commands
+\`/agent\` \`/task\` \`/status\` \`/session\` \`/preflight\` \`/done\` \`/complete\` \`/sync\`
 
 ## Conventions
 - Python: Use type hints, docstrings required
 - API: RESTful endpoints, JSON responses
-- Git: Meaningful commit messages with emoji
+- Git: Meaningful commit messages with [T###] prefix
+- Tasks: Always log work with retrospective via KB API
 
 EOF
 

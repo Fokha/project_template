@@ -235,6 +235,74 @@ CREATE TABLE IF NOT EXISTS kb_code_snippets (
 );
 
 -- ============================================
+-- AGENT REGISTRY (Multi-Agent Coordination)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS kb_agents (
+    agent_id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    status TEXT DEFAULT 'active',
+    focus TEXT,
+    working_on TEXT,
+    working_on_task_id TEXT,
+    repo TEXT,
+    locked_files TEXT DEFAULT '[]',
+    session_start DATETIME DEFAULT (datetime('now')),
+    last_heartbeat DATETIME DEFAULT (datetime('now')),
+    capabilities TEXT DEFAULT '[]',
+    created_at DATETIME DEFAULT (datetime('now'))
+);
+
+-- ============================================
+-- WORK LOGS (Agent Activity Tracking)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS kb_work_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id TEXT NOT NULL,
+    task_id TEXT,
+    action TEXT NOT NULL,
+    summary TEXT,
+    files_changed TEXT DEFAULT '[]',
+    commit_hash TEXT,
+    duration_minutes REAL,
+    retrospective TEXT,
+    lesson_learned TEXT,
+    tags TEXT DEFAULT '[]',
+    created_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY (agent_id) REFERENCES kb_agents(agent_id)
+);
+
+-- ============================================
+-- AGENT SKILL MATRIX
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS kb_agent_skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id TEXT NOT NULL,
+    skill TEXT NOT NULL,
+    score REAL DEFAULT 0.0,
+    tasks_completed INTEGER DEFAULT 0,
+    last_used DATETIME DEFAULT (datetime('now')),
+    UNIQUE(agent_id, skill)
+);
+
+-- ============================================
+-- AGENT MEMORY (Cross-Session Persistence)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS kb_agent_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id TEXT NOT NULL,
+    memory_key TEXT NOT NULL,
+    content TEXT,
+    category TEXT DEFAULT 'general',
+    created_at DATETIME DEFAULT (datetime('now')),
+    updated_at DATETIME DEFAULT (datetime('now')),
+    UNIQUE(agent_id, memory_key)
+);
+
+-- ============================================
 -- INDEXES
 -- ============================================
 
@@ -246,10 +314,23 @@ CREATE INDEX IF NOT EXISTS idx_messages_task ON kb_messages(task_id);
 CREATE INDEX IF NOT EXISTS idx_activity_created ON kb_activity_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_research_topic ON kb_research(topic);
 CREATE INDEX IF NOT EXISTS idx_research_status ON kb_research(status);
+CREATE INDEX IF NOT EXISTS idx_agents_status ON kb_agents(status);
+CREATE INDEX IF NOT EXISTS idx_work_logs_agent ON kb_work_logs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_work_logs_created ON kb_work_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_skills_agent ON kb_agent_skills(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_memory_agent ON kb_agent_memory(agent_id);
 
 -- ============================================
 -- VIEWS
 -- ============================================
+
+CREATE VIEW IF NOT EXISTS v_team_workload AS
+SELECT a.agent_id, a.role, a.status, a.focus, a.working_on,
+       COUNT(t.task_id) as active_tasks
+FROM kb_agents a
+LEFT JOIN kb_tasks t ON t.assigned_to = a.agent_id AND t.status = 'in_progress'
+WHERE a.status != 'inactive'
+GROUP BY a.agent_id;
 
 CREATE VIEW IF NOT EXISTS v_active_tasks AS
 SELECT task_id, title, status, priority, assigned_to, created_at

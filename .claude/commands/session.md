@@ -1,43 +1,60 @@
-# Session Management Commands
+# Session Management
 
-Manage agent work sessions.
+Manage agent work sessions via the Knowledge Base API.
 
-## Start Session
-
+## Start Session (Register Agent)
 ```bash
-python3 .agents/tools/agent_registry.py session start ROLE
+AGENT="YOUR_AGENT_NAME"
+curl -X POST http://localhost:5050/kb/agents/$AGENT \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"role": "your_role", "focus": "your specialization", "repo": "repo_name"}'
 ```
 
-**Important**: Save the returned SESSION_ID as `$SID` for use in other commands.
-
-## Log Activity
-
+## Check Team Status
 ```bash
-python3 .agents/tools/agent_registry.py session log SESSION_ID "Description of what was done"
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/team/status | python3 -m json.tool
+```
+
+## Resume Previous Session
+```bash
+# Load full context
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/resume | python3 -m json.tool
+
+# Check your persistent memory
+curl -s -H "X-API-Key: $API_KEY" http://localhost:5050/kb/memory/$AGENT | python3 -m json.tool
+```
+
+## Save Session Memory
+```bash
+curl -X POST http://localhost:5050/kb/memory/$AGENT \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"key": "session_summary", "content": "What was accomplished this session", "category": "session"}'
+```
+
+## Log Work
+```bash
+curl -X POST http://localhost:5050/kb/work-logs \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"agent_id": "AGENT", "task_id": "T###", "action": "completed",
+       "summary": "What was done", "files_changed": ["file1.py"],
+       "retrospective": "What went well/badly",
+       "lesson_learned": "Key insight for future",
+       "tags": ["python", "api"]}'
 ```
 
 ## End Session
-
 ```bash
-python3 .agents/tools/agent_registry.py session end SESSION_ID "Summary of session work"
+# Release locks
+curl -X PUT http://localhost:5050/kb/agents/$AGENT \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+  -d '{"locked_files": [], "working_on_task_id": null}'
+
+# Deregister
+curl -X DELETE http://localhost:5050/kb/agents/$AGENT -H "X-API-Key: $API_KEY"
 ```
-
-## List Sessions
-
-```bash
-python3 .agents/tools/agent_registry.py session list
-```
-
-## Session Workflow
-
-1. **Start**: Begin session and get SESSION_ID
-2. **Log**: Record important actions throughout
-3. **End**: Close session with summary
 
 ## Quick Actions
-
-Based on user request:
-- "start session as X" → Run session start with role X, tell user the SESSION_ID
-- "log: Y" → Run session log with the message Y
-- "end session" → Run session end with summary
-- "list sessions" → Show all sessions
+- "start session" → POST /kb/agents/NAME + GET /kb/resume
+- "save context" → POST /kb/memory/NAME + POST /kb/context
+- "end session" → Release locks + DELETE /kb/agents/NAME
+- "resume" → GET /kb/resume + GET /kb/memory/NAME
